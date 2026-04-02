@@ -36,7 +36,7 @@ if [ -f "$CONFIG_FILE" ]; then
   WIDGET_CONFIG=$(cat "$CONFIG_FILE")
 else
   # Default: all display
-  WIDGET_CONFIG='{"widgets":{"branch":"display","diff_weight":"display","files_touched":"display","prompt_count":"display","session_clock":"display"}}'
+  WIDGET_CONFIG='{"widgets":{"branch":"display","diff_weight":"display","files_touched":"display","prompt_count":"display","session_clock":"display","todos":"context","secrets":"display","compaction":"display"}}'
 fi
 
 # --- Sanitize: strip unsafe chars, cap length ---
@@ -100,12 +100,58 @@ except: print('?')
   echo "$elapsed"
 }
 
+widget_todos() {
+  cd "$CLAUDE_PROJECT_DIR" 2>/dev/null || { echo "0 TODOs"; return; }
+  # Count TODO/FIXME/HACK in modified files only
+  local files=$(git diff HEAD --name-only 2>/dev/null || true)
+  if [ -z "$files" ]; then
+    echo "0 TODOs"
+    return
+  fi
+  local count=$(echo "$files" | xargs grep -cEi 'TODO|FIXME|HACK' 2>/dev/null | grep -v ':0$' | awk -F: '{s+=$2} END {print s+0}')
+  echo "${count:-0} TODOs"
+}
+
+widget_secrets() {
+  cd "$CLAUDE_PROJECT_DIR" 2>/dev/null || { echo "ok"; return; }
+  # Check staged files for common secret patterns
+  local staged=$(git diff --cached --name-only 2>/dev/null || true)
+  if [ -z "$staged" ]; then
+    echo "ok"
+    return
+  fi
+  local hits=$(echo "$staged" | xargs grep -lEi '(api[_-]?key|secret[_-]?key|password|token|private[_-]?key)\s*[:=]' 2>/dev/null | wc -l | tr -d ' ')
+  if [ "${hits:-0}" -gt 0 ]; then
+    echo "SECRETS:${hits}"
+  else
+    echo "ok"
+  fi
+}
+
+widget_compaction() {
+  # Read compaction flag from state (set by PreCompact hook)
+  local flag=$(STATE_FILE="$STATE_FILE" python3 -c "
+import json, os
+try:
+    with open(os.environ['STATE_FILE']) as f: s = json.load(f)
+    c = s.get('compacted_at_prompt', 0)
+    p = s.get('prompt_count', 0)
+    if c > 0:
+        ago = p - c
+        print(f'compacted {ago} prompts ago')
+    else:
+        print('ok')
+except: print('ok')
+" 2>/dev/null || echo "ok")
+  echo "$flag"
+}
+
 # --- Assemble HUD ---
 
 display_parts=()
 context_parts=()
 
-for widget in branch diff_weight files_touched prompt_count session_clock; do
+for widget in branch diff_weight files_touched prompt_count session_clock todos secrets compaction; do
   # Get widget mode from config
   mode=$(echo "$WIDGET_CONFIG" | WIDGET="$widget" python3 -c "
 import json, sys, os
@@ -130,6 +176,11 @@ except: print('off')
 
   # Run widget + sanitize output
   value=$(sanitize "$(widget_${widget} 2>/dev/null || echo "?")")
+
+  # Skip "ok" values in display mode (no news = no noise)
+  if [ "$value" = "ok" ] && [ "$mode" = "display" ]; then
+    continue
+  fi
 
   if [ "$mode" = "display" ]; then
     display_parts+=("$value")

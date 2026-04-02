@@ -1,6 +1,6 @@
-# Spark ⚡
+# ⚡ Spark
 
-A heads-up display for Claude Code sessions.
+Claude Code HUD
 
 Spark is a Claude Code hook that displays a live status line at the top of every response:
 
@@ -19,11 +19,11 @@ No VS Code extension. No separate window. No dependencies. Just a shell script.
 ## Install
 
 ```bash
-# 1. Copy spark.sh to your project
-cp spark.sh /path/to/your/project/.claude/hooks/spark.sh
-chmod +x /path/to/your/project/.claude/hooks/spark.sh
+# 1. Copy hooks to your project
+cp spark.sh spark-precompact.sh /path/to/your/project/.claude/hooks/
+chmod +x /path/to/your/project/.claude/hooks/spark*.sh
 
-# 2. Add the hook to your project's .claude/settings.json
+# 2. Add the hooks to your project's .claude/settings.json
 ```
 
 Add to `.claude/settings.json`:
@@ -42,10 +42,24 @@ Add to `.claude/settings.json`:
           }
         ]
       }
+    ],
+    "PreCompact": [
+      {
+        "matcher": ".*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/spark-precompact.sh",
+            "timeout": 3000
+          }
+        ]
+      }
     ]
   }
 }
 ```
+
+The PreCompact hook is optional — it enables the compaction warning widget. Everything else works with just the UserPromptSubmit hook.
 
 That's it. Next Claude Code prompt shows the HUD.
 
@@ -61,13 +75,16 @@ Each widget computes one value. Widgets can run in two modes:
 
 ### Built-in widgets
 
-| Widget | Shows | Default |
-|--------|-------|---------|
-| `branch` | Current git branch | display |
-| `diff_weight` | +N/-N lines changed | display |
-| `files_touched` | Number of modified + untracked files | display |
-| `prompt_count` | Prompts this session (#N) | display |
-| `session_clock` | Time since session start | display |
+| Widget | Shows | Default | Notes |
+|--------|-------|---------|-------|
+| `branch` | Current git branch | display | |
+| `diff_weight` | +N/-N lines changed | display | |
+| `files_touched` | Modified + untracked file count | display | |
+| `prompt_count` | Prompts this session (#N) | display | |
+| `session_clock` | Time since session start | display | |
+| `todos` | TODO/FIXME/HACK count in changed files | context | |
+| `secrets` | Detects API keys in staged files | display | Silent when clean |
+| `compaction` | Warns when context was compacted | display | Silent when clean, needs PreCompact hook |
 
 ## Configuration
 
