@@ -18,6 +18,16 @@ No VS Code extension. No separate window. No dependencies. Just a shell script.
 
 ## Install
 
+One command, from your project root:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/jbmoutout/spark/main/install.sh | bash
+```
+
+This downloads the hooks, creates/updates `.claude/settings.json`, and you're done. Next Claude Code prompt shows the HUD.
+
+### Manual install
+
 ```bash
 # 1. Copy hooks to your project
 cp spark.sh spark-precompact.sh /path/to/your/project/.claude/hooks/
