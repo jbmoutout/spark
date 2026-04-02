@@ -21,10 +21,11 @@ chmod +x "$HOOKS_DIR/spark.sh" "$HOOKS_DIR/spark-precompact.sh"
 # Create or update settings.json
 if [ -f "$SETTINGS_FILE" ]; then
   # Merge into existing settings
-  python3 -c "
-import json
+  SETTINGS_FILE="$SETTINGS_FILE" python3 -c "
+import json, os
 
-with open('$SETTINGS_FILE') as f:
+sf = os.environ['SETTINGS_FILE']
+with open(sf) as f:
     settings = json.load(f)
 
 hooks = settings.setdefault('hooks', {})
@@ -33,10 +34,9 @@ hooks = settings.setdefault('hooks', {})
 usp = hooks.setdefault('UserPromptSubmit', [])
 spark_entry = {
     'type': 'command',
-    'command': '\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/spark.sh',
+    'command': '\"' + '\$CLAUDE_PROJECT_DIR' + '\"/.claude/hooks/spark.sh',
     'timeout': 5000
 }
-# Check if spark is already registered
 already = any('spark.sh' in h.get('command', '') for m in usp for h in m.get('hooks', []))
 if not already:
     if usp and 'hooks' in usp[0]:
@@ -48,7 +48,7 @@ if not already:
 pc = hooks.setdefault('PreCompact', [])
 precompact_entry = {
     'type': 'command',
-    'command': '\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/spark-precompact.sh',
+    'command': '\"' + '\$CLAUDE_PROJECT_DIR' + '\"/.claude/hooks/spark-precompact.sh',
     'timeout': 3000
 }
 already_pc = any('spark-precompact.sh' in h.get('command', '') for m in pc for h in m.get('hooks', []))
@@ -58,7 +58,7 @@ if not already_pc:
     else:
         pc.append({'matcher': '.*', 'hooks': [precompact_entry]})
 
-with open('$SETTINGS_FILE', 'w') as f:
+with open(sf, 'w') as f:
     json.dump(settings, f, indent=2)
     f.write('\n')
 " 2>/dev/null
