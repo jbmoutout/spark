@@ -1,0 +1,26 @@
+{
+  "name": "spark-hud",
+  "version": "0.3.0",
+  "description": "⚡ A heads-up display for Claude Code sessions",
+  "bin": {
+    "spark-hud": "./bin/cli.js"
+  },
+  "files": [
+    "bin/",
+    "spark.sh",
+    "spark-precompact.sh"
+  ],
+  "keywords": [
+    "claude-code",
+    "hooks",
+    "hud",
+    "developer-tools",
+    "ai-coding"
+  ],
+  "author": "jbmoutout",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/jbmoutout/spark"
+  }
+}
