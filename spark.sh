@@ -266,7 +266,12 @@ if [ "$IS_FIRST" = "true" ]; then
     midx=$((midx + 1))
     mmode=$(echo "$ALL_MODES" | sed -n "${midx}p")
     if [ "$mmode" = "alert" ]; then
-      manifest_parts+=("$widget")
+      # Clean display names (strip underscores, shorten)
+      case "$widget" in
+        env_drift)     manifest_parts+=("env") ;;
+        last_session)  manifest_parts+=("last") ;;
+        *)             manifest_parts+=("$widget") ;;
+      esac
     fi
   done
   if [ ${#manifest_parts[@]} -gt 0 ]; then

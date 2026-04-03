@@ -199,7 +199,7 @@ test('spark.sh handles leading-dash filenames in TODO and secret scanners', () =
   assert.match(context, /todos: 1 TODOs/);
 });
 
-test('spark.sh renders clean branch labels in minimal theme', () => {
+test('spark.sh renders clean branch labels in compact theme', () => {
   const projectDir = makeTempDir();
   initGitRepo(projectDir);
   writeFile(path.join(projectDir, '.gitignore'), '.spark/\n');
@@ -211,7 +211,7 @@ test('spark.sh renders clean branch labels in minimal theme', () => {
     prompt_count: 1,
   });
   writeJson(path.join(projectDir, '.spark', 'config.json'), {
-    theme: 'minimal',
+    theme: 'compact',
     widgets: {
       branch: 'display',
       tokens: 'display',
