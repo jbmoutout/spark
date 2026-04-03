@@ -165,18 +165,19 @@ import json, os
 try:
     with open(os.environ['STATE_FILE']) as f: s = json.load(f)
     prev = s.get('prev_widgets', {})
-    for k in ['branch','diff_weight','model','tokens']:
+    for k in ['branch','diff_weight','model','tokens','party']:
         print(prev.get(k, ''))
 except Exception:
-    for _ in range(4): print('')
-" 2>/dev/null || printf '\n\n\n\n')
+    for _ in range(5): print('')
+" 2>/dev/null || printf '\n\n\n\n\n')
 
 prev_diff=$(echo "$PREV_VALUES" | sed -n '2p')
 prev_model=$(echo "$PREV_VALUES" | sed -n '3p')
+prev_party=$(echo "$PREV_VALUES" | sed -n '5p')
 
 # --- Collect widget values ---
 val_branch="" val_diff_weight="" val_tokens=""
-val_session_clock="" val_model="" val_plant="" val_todos=""
+val_session_clock="" val_model="" val_plant="" val_todos="" val_party=""
 context_parts=()
 alert_parts=()
 val_last_session=""
@@ -223,6 +224,13 @@ for widget in $BUILTIN_NAMES; do
       case "$widget" in
         last_session)
           [ "$IS_FIRST" = "true" ] && val_last_session="$value"
+          ;;
+        party)
+          val_party="$value"
+          # Show only when count changed since last prompt
+          if [ "$value" != "$prev_party" ]; then
+            alert_parts+=("$value")
+          fi
           ;;
         weather|timezone)
           # Show on prompt #1 and every 10th prompt
@@ -281,7 +289,7 @@ fi
 session_branch=$(normalize_branch "$val_branch")
 session_todos=$(printf '%s' "${val_todos:-0 TODOs}" | grep -oE '^[0-9]+' || echo "0")
 
-STATE_FILE="$STATE_FILE" PREV_BRANCH="$val_branch" PREV_DIFF="$val_diff_weight" PREV_MODEL="$val_model" PREV_TOKENS="$val_tokens" SESSION_BRANCH="$session_branch" SESSION_TODOS="$session_todos" python3 -c "
+STATE_FILE="$STATE_FILE" PREV_BRANCH="$val_branch" PREV_DIFF="$val_diff_weight" PREV_MODEL="$val_model" PREV_TOKENS="$val_tokens" PREV_PARTY="$val_party" SESSION_BRANCH="$session_branch" SESSION_TODOS="$session_todos" python3 -c "
 import json, os
 
 sf = os.environ['STATE_FILE']
@@ -296,6 +304,7 @@ s['prev_widgets'] = {
     'diff_weight': os.environ.get('PREV_DIFF', ''),
     'model': os.environ.get('PREV_MODEL', ''),
     'tokens': os.environ.get('PREV_TOKENS', ''),
+    'party': os.environ.get('PREV_PARTY', ''),
 }
 s['session_branch'] = os.environ.get('SESSION_BRANCH', '')
 s['session_todos'] = int(os.environ.get('SESSION_TODOS', '0') or 0)

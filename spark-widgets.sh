@@ -312,7 +312,7 @@ try:
     if n == 0:
         print('ok')
     else:
-        print(f'party:{n} agents')
+        print(f'{n} sub-agents')
 except Exception: print('ok')
 " 2>/dev/null || echo "ok")
   echo "$count"
