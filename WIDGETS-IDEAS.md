@@ -64,6 +64,23 @@ Brainstormed 2026-04-03. Ranked by "screenshot and share" potential.
 - Glyph → project sigil (permanent, stored in config)
 - Glyph as separator between line 1 and line 2
 
+## Pirate Round — stolen from other domains
+
+| # | Name | Stolen from | Concept |
+|---|------|------------|---------|
+| 46 | Achievement Unlocked | Video games | One-time milestones: `achievement: first commit` / `achievement: 100k tokens`. Shows once, never repeats. |
+| 47 | Loading Tips | Video games | `tip: git stash -p lets you stash hunks` — NOTE: statusMessage not in API yet. Could use additionalContext. |
+| 48 | Fog of War | Video games | `explored: 12/347 files` — how much of codebase Claude has "seen" via Read/Grep/Glob. Useful. |
+| 49 | Today's Activity | Spotify Wrapped | `today: 3 sessions / 12 commits / 480k tok` — daily summary. |
+| 51 | Session Rings | Apple Watch | `[*][*][ ]` — Commits, Edits, Tests. Three goals, three indicators. |
+| 52 | Rest Day | Fitness | `rest day yesterday — welcome back`. First prompt only. Acknowledges absence. |
+| 53 | Odometer | Cars | `odo: 1.2M tok` — lifetime tokens. Never resets. |
+| 54 | Fuel Gauge | Cars | Energy based on time of day. Full morning, draining by evening. (User-configurable curve.) |
+| 57 | BPM | Music | `bpm: 12` — prompts per hour. Your coding tempo. |
+| 58 | Loop Detector | DAWs | `loop?` — edited same file 3+ times without commit. Are you looping? |
+| 59 | Mission Clock | NASA | `T+01:23:45` — mission elapsed time. Theme variant for session clock. |
+| 60 | Systems Check | NASA | `sys: git ok / node ok / env ok / tests ?` — preflight on session start. |
+
 ## Also generated (not yet ranked)
 
 | # | Name | Concept |
