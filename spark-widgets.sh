@@ -251,6 +251,38 @@ PYEOF
   echo "${info:-ok}"
 }
 
+widget_fog_of_war() {
+  # How many unique files Claude has explored this session
+  local count=$(STATE_FILE="$STATE_FILE" python3 -c "
+import json, os
+try:
+    with open(os.environ['STATE_FILE']) as f: s = json.load(f)
+    n = s.get('files_explored', 0)
+    if n == 0:
+        print('ok')
+    else:
+        print(f'explored:{n} files')
+except Exception: print('ok')
+" 2>/dev/null || echo "ok")
+  echo "$count"
+}
+
+widget_party() {
+  # How many sub-agents Claude spawned this session
+  local count=$(STATE_FILE="$STATE_FILE" python3 -c "
+import json, os
+try:
+    with open(os.environ['STATE_FILE']) as f: s = json.load(f)
+    n = s.get('subagents', 0)
+    if n == 0:
+        print('ok')
+    else:
+        print(f'party:{n} agents')
+except Exception: print('ok')
+" 2>/dev/null || echo "ok")
+  echo "$count"
+}
+
 widget_plant() {
   # A plant that grows with cumulative session time. Persists across sessions.
   # Stages: . → .: → .| → .|. → .|: → .:|. → .:|: → .:|:. → .:||:. → *:|:*

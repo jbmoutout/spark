@@ -106,6 +106,37 @@ except Exception:
 if last_model:
     state['model'] = last_model
 
+# Count files explored and sub-agents from transcript
+files_explored = set()
+subagents = 0
+try:
+    with open(transcript_path) as f:
+        for line in f:
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                entry = json.loads(line)
+                msg = entry.get('message', {})
+                if isinstance(msg, dict):
+                    for content in msg.get('content', []):
+                        if isinstance(content, dict) and content.get('type') == 'tool_use':
+                            tool = content.get('name', '')
+                            inp = content.get('input', {})
+                            if tool in ('Read', 'Grep', 'Glob'):
+                                fp = inp.get('file_path', '') or inp.get('path', '')
+                                if fp:
+                                    files_explored.add(fp)
+                            elif tool == 'Agent':
+                                subagents += 1
+            except Exception:
+                continue
+except Exception:
+    pass
+
+state['files_explored'] = len(files_explored)
+state['subagents'] = subagents
+
 # Update plant total minutes (cumulative across sessions)
 import datetime, subprocess
 now = datetime.datetime.now(datetime.timezone.utc)
