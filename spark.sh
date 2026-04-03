@@ -293,7 +293,7 @@ if [ "$IS_FIRST" = "true" ]; then
       [ "$i" -gt 0 ] && manifest_joined="$manifest_joined · "
       manifest_joined="$manifest_joined${manifest_parts[$i]}"
     done
-    display_line="${display_line}\n  watching: ${manifest_joined}"
+    display_line="${display_line}\n  active: ${manifest_joined}"
   fi
 fi
 
