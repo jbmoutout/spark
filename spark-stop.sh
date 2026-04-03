@@ -9,7 +9,7 @@ command -v python3 &>/dev/null || { cat > /dev/null; exit 0; }
 
 SPARK_DIR="$CLAUDE_PROJECT_DIR/.spark"
 STATE_FILE="$SPARK_DIR/state.json"
-MAX_TRANSCRIPT_BYTES="${SPARK_MAX_TRANSCRIPT_BYTES:-5242880}"
+MAX_TRANSCRIPT_BYTES="${SPARK_MAX_TRANSCRIPT_BYTES:-20971520}"
 
 # Skip if no state file
 [ -f "$STATE_FILE" ] || { cat > /dev/null; exit 0; }
