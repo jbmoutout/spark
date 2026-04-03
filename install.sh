@@ -16,7 +16,8 @@ mkdir -p "$HOOKS_DIR"
 # Download hooks
 curl -fsSL "$SPARK_REPO/spark.sh" -o "$HOOKS_DIR/spark.sh"
 curl -fsSL "$SPARK_REPO/spark-precompact.sh" -o "$HOOKS_DIR/spark-precompact.sh"
-chmod +x "$HOOKS_DIR/spark.sh" "$HOOKS_DIR/spark-precompact.sh"
+curl -fsSL "$SPARK_REPO/spark-stop.sh" -o "$HOOKS_DIR/spark-stop.sh"
+chmod +x "$HOOKS_DIR/spark.sh" "$HOOKS_DIR/spark-precompact.sh" "$HOOKS_DIR/spark-stop.sh"
 
 # Create or update settings.json
 if [ -f "$SETTINGS_FILE" ]; then
@@ -91,6 +92,18 @@ else
           }
         ]
       }
+    ],
+    "Stop": [
+      {
+        "matcher": ".*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/spark-stop.sh",
+            "timeout": 5000
+          }
+        ]
+      }
     ]
   }
 }
@@ -98,6 +111,6 @@ SETTINGS
   echo "  Created $SETTINGS_FILE"
 fi
 
-echo "  Downloaded spark.sh + spark-precompact.sh"
+echo "  Downloaded spark.sh + spark-precompact.sh + spark-stop.sh"
 echo ""
 echo "⚡ Spark installed. Start a Claude Code session to see the HUD."

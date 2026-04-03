@@ -10,6 +10,7 @@ const PKG_DIR = path.resolve(__dirname, '..');
 const HOOKS = [
   { src: 'spark.sh', timeout: 5000, event: 'UserPromptSubmit' },
   { src: 'spark-precompact.sh', timeout: 3000, event: 'PreCompact' },
+  { src: 'spark-stop.sh', timeout: 5000, event: 'Stop' },
 ];
 
 function remove() {

@@ -90,6 +90,7 @@ Each widget computes one value. Widgets can run in two modes:
 | `branch` | Current git branch | display | |
 | `diff_weight` | +N/-N lines changed | display | |
 | `files_touched` | Modified + untracked file count | display | |
+| `cost` | Estimated session cost ($X.XX) | display | Needs Stop hook, one-prompt delay |
 | `prompt_count` | Prompts this session (#N) | display | |
 | `session_clock` | Time since session start | display | |
 | `todos` | TODO/FIXME/HACK count in changed files | context | |

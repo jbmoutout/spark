@@ -36,13 +36,13 @@ if [ -f "$CONFIG_FILE" ]; then
   WIDGET_CONFIG=$(cat "$CONFIG_FILE")
 else
   # Default: all display
-  WIDGET_CONFIG='{"widgets":{"branch":"display","diff_weight":"display","files_touched":"display","prompt_count":"display","session_clock":"display","todos":"context","secrets":"display","compaction":"display"}}'
+  WIDGET_CONFIG='{"widgets":{"branch":"display","diff_weight":"display","files_touched":"display","cost":"display","prompt_count":"display","session_clock":"display","todos":"context","secrets":"display","compaction":"display"}}'
 fi
 
 # --- Sanitize: strip unsafe chars, cap length ---
 sanitize() {
   local max_len="${2:-30}"
-  echo "$1" | tr -cd 'a-zA-Z0-9 _./:+-#' | head -c "$max_len"
+  echo "$1" | tr -cd 'a-zA-Z0-9 _./:+-#$' | head -c "$max_len"
 }
 
 # --- Widget functions ---
@@ -100,6 +100,23 @@ except: print('?')
   echo "$elapsed"
 }
 
+widget_cost() {
+  # Read accumulated cost from state (written by spark-stop.sh)
+  local raw=$(STATE_FILE="$STATE_FILE" python3 << 'PYEOF'
+import json, os
+try:
+    with open(os.environ['STATE_FILE']) as f: s = json.load(f)
+    c = s.get('cost_usd', 0)
+    if c == 0:
+        print('0.00')
+    else:
+        print(f'{c:.2f}')
+except: print('0.00')
+PYEOF
+  )
+  echo "\$${raw:-0.00}"
+}
+
 widget_todos() {
   cd "$CLAUDE_PROJECT_DIR" 2>/dev/null || { echo "0 TODOs"; return; }
   # Count TODO/FIXME/HACK in modified files only
@@ -151,7 +168,7 @@ except: print('ok')
 display_parts=()
 context_parts=()
 
-for widget in branch diff_weight files_touched prompt_count session_clock todos secrets compaction; do
+for widget in branch diff_weight files_touched cost prompt_count session_clock todos secrets compaction; do
   # Get widget mode from config
   mode=$(echo "$WIDGET_CONFIG" | WIDGET="$widget" python3 -c "
 import json, sys, os
