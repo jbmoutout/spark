@@ -225,7 +225,7 @@ format_line1() {
     [ -n "$model" ] && [ "$model" != "?" ] && identity="$identity $model"
     local metrics=""
     [ -n "$tokens" ] && metrics="tokens:$tokens"
-    [ -n "$clock" ] && metrics="$metrics time:$short_clock"
+    [ -n "$clock" ] && metrics="$metrics · time:$short_clock"
     local plant="$val_plant"
     [ -n "$plant" ] && metrics="$metrics $plant"
     echo "⚡ ${identity} · ${metrics}"
@@ -247,7 +247,7 @@ format_line1() {
     # Metrics — always (heartbeat)
     local metrics=""
     [ -n "$tokens" ] && metrics="$tokens"
-    [ -n "$clock" ] && metrics="$metrics $short_clock"
+    [ -n "$clock" ] && metrics="$metrics · $short_clock"
 
     local plant="$val_plant"
     [ -n "$plant" ] && metrics="$metrics $plant"
