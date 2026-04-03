@@ -284,6 +284,8 @@ try:
     with urllib.request.urlopen(req, timeout=3) as resp:
         text = resp.read().decode('utf-8').strip()
         text = text.replace('  ', ' ').strip()
+        # Strip trailing C/F after degree symbol — °C → °
+        text = text.replace('°C', '°').replace('°F', '°')
         if text:
             state['weather_text'] = text
             state['weather_at'] = datetime.datetime.now(datetime.timezone.utc).isoformat()
