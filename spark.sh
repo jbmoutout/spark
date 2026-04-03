@@ -47,7 +47,7 @@ if [ -f "$CONFIG_FILE" ]; then
   WIDGET_CONFIG=$(cat "$CONFIG_FILE")
 else
   # Default: all display
-  WIDGET_CONFIG='{"widgets":{"branch":"display","diff_weight":"display","files_touched":"context","tokens":"display","prompt_count":"context","session_clock":"display","todos":"context","secrets":"alert","compaction":"alert","env_drift":"alert","last_session":"alert","model":"display"}}'
+  WIDGET_CONFIG='{"widgets":{"branch":"display","diff_weight":"display","files_touched":"context","tokens":"display","prompt_count":"context","session_clock":"display","todos":"context","secrets":"alert","compaction":"alert","env_drift":"alert","last_session":"alert","model":"display","weather":"off","timezone":"off"}}'
 fi
 
 # --- Sanitize: strip unsafe chars, cap length ---
@@ -326,6 +326,97 @@ PYEOF
   echo "${info:-ok}"
 }
 
+widget_weather() {
+  # Fetch weather once per session, cache in state. Opt-in only (network call).
+  local weather=$(STATE_FILE="$STATE_FILE" WIDGET_CONFIG="$WIDGET_CONFIG" python3 << 'PYEOF'
+import json, os, urllib.request, datetime
+
+sf = os.environ.get('STATE_FILE', '')
+try:
+    with open(sf) as f: state = json.load(f)
+except Exception: state = {}
+
+# Check cache — refresh only if older than 30 min
+cached = state.get('weather_text', '')
+cached_at = state.get('weather_at', '')
+if cached and cached_at:
+    try:
+        t = datetime.datetime.fromisoformat(cached_at.replace('Z', '+00:00'))
+        age = (datetime.datetime.now(datetime.timezone.utc) - t).total_seconds()
+        if age < 1800:
+            print(cached)
+            exit()
+    except Exception:
+        pass
+
+# Read location from config (default: auto from IP)
+try:
+    cfg = json.loads(os.environ.get('WIDGET_CONFIG', '{}'))
+    location = cfg.get('weather_location', '')
+except Exception:
+    location = ''
+
+# Fetch from wttr.in — format="%c+%t" gives icon + temp
+url = f'https://wttr.in/{location}?format=%c+%t'
+try:
+    req = urllib.request.Request(url, headers={'User-Agent': 'spark-hud'})
+    with urllib.request.urlopen(req, timeout=3) as resp:
+        text = resp.read().decode('utf-8').strip()
+        # Clean up — remove leading +, extra spaces
+        text = text.replace('  ', ' ').strip()
+        if text:
+            # Save to cache
+            state['weather_text'] = text
+            state['weather_at'] = datetime.datetime.now(datetime.timezone.utc).isoformat()
+            with open(sf, 'w') as f: json.dump(state, f)
+            print(text)
+        else:
+            print('ok')
+except Exception:
+    if cached:
+        print(cached)
+    else:
+        print('ok')
+PYEOF
+  )
+  echo "${weather:-ok}"
+}
+
+widget_timezone() {
+  # Show configured timezones. Config: "timezones": ["Asia/Bangkok", "America/New_York"]
+  local tz=$(WIDGET_CONFIG="$WIDGET_CONFIG" python3 << 'PYEOF'
+import json, os, datetime
+
+try:
+    cfg = json.loads(os.environ.get('WIDGET_CONFIG', '{}'))
+    zones = cfg.get('timezones', [])
+except Exception:
+    zones = []
+
+if not zones:
+    print('ok')
+    exit()
+
+parts = []
+for tz_name in zones[:3]:  # max 3 to fit in 60 chars
+    try:
+        # Python 3.9+ zoneinfo
+        from zoneinfo import ZoneInfo
+        now = datetime.datetime.now(ZoneInfo(tz_name))
+        city = tz_name.split('/')[-1].replace('_', ' ')
+        parts.append(f'{city} {now.strftime("%H:%M")}')
+    except Exception:
+        continue
+
+if parts:
+    print(' / '.join(parts))
+else:
+    print('ok')
+PYEOF
+  )
+  echo "${tz:-ok}"
+}
+
 # --- Get theme ---
 
 THEME=$(echo "$WIDGET_CONFIG" | python3 -c "
@@ -341,7 +432,7 @@ except Exception: print('default')
 # Use simple vars instead of associative array (bash 3 compat)
 val_branch="" val_diff_weight="" val_files_touched="" val_tokens=""
 val_prompt_count="" val_session_clock="" val_todos="" val_secrets="" val_compaction=""
-val_env_drift="" val_last_session="" val_model=""
+val_env_drift="" val_last_session="" val_model="" val_weather="" val_timezone=""
 context_parts=()
 
 # Resolve all widget modes in a single python3 call
@@ -350,17 +441,17 @@ import json, sys
 try:
     c = json.load(sys.stdin)
     w = c.get('widgets', {})
-    for name in ['branch','diff_weight','files_touched','tokens','prompt_count','session_clock','todos','secrets','compaction','env_drift','last_session','model']:
+    for name in ['branch','diff_weight','files_touched','tokens','prompt_count','session_clock','todos','secrets','compaction','env_drift','last_session','model','weather','timezone']:
         print(w.get(name, 'off'))
 except Exception:
-    for _ in range(12): print('off')
-" 2>/dev/null || printf 'off\noff\noff\noff\noff\noff\noff\noff\noff\noff\noff\noff\n')
+    for _ in range(14): print('off')
+" 2>/dev/null || printf 'off\noff\noff\noff\noff\noff\noff\noff\noff\noff\noff\noff\noff\noff\n')
 
 # Read modes into array
 idx=0
 alert_parts=()
 
-for widget in branch diff_weight files_touched tokens prompt_count session_clock todos secrets compaction env_drift last_session model; do
+for widget in branch diff_weight files_touched tokens prompt_count session_clock todos secrets compaction env_drift last_session model weather timezone; do
   idx=$((idx + 1))
   mode=$(echo "$ALL_MODES" | sed -n "${idx}p")
 
@@ -382,6 +473,8 @@ for widget in branch diff_weight files_touched tokens prompt_count session_clock
     env_drift)      value=$(sanitize "$(widget_env_drift 2>/dev/null || echo "?")" 60) ;;
     last_session)   value=$(sanitize "$(widget_last_session 2>/dev/null || echo "?")" 60) ;;
     model)          value=$(sanitize "$(widget_model 2>/dev/null || echo "?")") ;;
+    weather)        value=$(sanitize "$(widget_weather 2>/dev/null || echo "?")" 30) ;;
+    timezone)       value=$(sanitize "$(widget_timezone 2>/dev/null || echo "?")" 50) ;;
     *)              continue ;;
   esac
 
@@ -399,6 +492,8 @@ for widget in branch diff_weight files_touched tokens prompt_count session_clock
       env_drift)      val_env_drift="$value" ;;
       last_session)   val_last_session="$value" ;;
       model)          val_model="$value" ;;
+      weather)        val_weather="$value" ;;
+      timezone)       val_timezone="$value" ;;
     esac
   elif [ "$mode" = "alert" ]; then
     # Alert mode: only show on line 2 when value != "ok"
@@ -493,6 +588,13 @@ format_theme() {
   local clock="$val_session_clock"
   local secrets="$val_secrets"
   local compaction="$val_compaction"
+  local weather="$val_weather"
+  local tz="$val_timezone"
+
+  # Build display suffix for optional widgets (weather, timezone)
+  local suffix=""
+  if [ -n "$weather" ] && [ "$weather" != "ok" ]; then suffix="$suffix · $weather"; fi
+  if [ -n "$tz" ] && [ "$tz" != "ok" ]; then suffix="$suffix · $tz"; fi
 
   # Shorten clock for compact themes
   local short_clock=$(echo "$clock" | sed 's/min$/m/' | sed 's/hour$/h/')
@@ -505,7 +607,7 @@ format_theme() {
       if [ -n "$diff" ] && [ "$diff" != "ok" ]; then parts="$parts $diff"; fi
       if [ -n "$tokens" ]; then parts="$parts · $tokens"; fi
       if [ -n "$clock" ]; then parts="$parts · $short_clock"; fi
-      echo "⚡ ${parts}"
+      echo "⚡ ${parts}${suffix}"
       ;;
     starship)
       local b=$(normalize_branch_label "$branch")
@@ -517,7 +619,7 @@ format_theme() {
       if [ -n "$model" ] && [ "$model" != "?" ]; then parts="$parts · $model"; fi
       if [ -n "$tokens" ]; then parts="$parts · $tokens"; fi
       if [ -n "$clock" ]; then parts="$parts · $short_clock"; fi
-      echo "⚡ ${parts}"
+      echo "⚡ ${parts}${suffix}"
       ;;
     classic)
       local b=$(normalize_branch_label "$branch" | tr '[:lower:]' '[:upper:]')
@@ -527,7 +629,7 @@ format_theme() {
       if [ -n "$diff" ] && [ "$diff" != "ok" ]; then parts="$parts [${diff}]"; fi
       if [ -n "$tokens" ]; then parts="$parts [${tokens}]"; fi
       if [ -n "$clock" ]; then parts="$parts [${short_clock}]"; fi
-      echo ">> ${parts}"
+      echo ">> ${parts}${suffix}"
       ;;
     powerline)
       local b=$(normalize_branch_label "$branch")
@@ -536,7 +638,7 @@ format_theme() {
       if [ -n "$diff" ] && [ "$diff" != "ok" ]; then parts="$parts  ${diff}"; fi
       if [ -n "$tokens" ]; then parts="$parts  ${tokens}"; fi
       if [ -n "$clock" ]; then parts="$parts  ${short_clock}"; fi
-      echo "⚡${parts}"
+      echo "⚡${parts}${suffix}"
       ;;
     *)
       local parts="$branch"
@@ -544,7 +646,7 @@ format_theme() {
       if [ -n "$diff" ] && [ "$diff" != "ok" ]; then parts="$parts · $diff"; fi
       if [ -n "$tokens" ]; then parts="$parts · $tokens"; fi
       if [ -n "$clock" ]; then parts="$parts · $clock"; fi
-      echo "⚡ ${parts}"
+      echo "⚡ ${parts}${suffix}"
       ;;
   esac
 }
