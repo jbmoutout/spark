@@ -426,6 +426,61 @@ except Exception: print(0)
   fi
 done
 
+# --- Custom widgets from .spark/widgets/ ---
+# Only runs widgets that are: (1) listed in config, (2) NOT a built-in name,
+# (3) have a matching .sh file in .spark/widgets/
+
+BUILTIN_WIDGETS="branch diff_weight files_touched tokens prompt_count session_clock todos secrets compaction env_drift last_session model"
+CUSTOM_WIDGETS_DIR="$SPARK_DIR/widgets"
+
+if [ -d "$CUSTOM_WIDGETS_DIR" ]; then
+  custom_names=$(echo "$WIDGET_CONFIG" | python3 -c "
+import json, sys
+builtins = set('$BUILTIN_WIDGETS'.split())
+try:
+    c = json.load(sys.stdin)
+    for name, mode in c.get('widgets', {}).items():
+        if name not in builtins and mode in ('display', 'context', 'alert'):
+            print(name + ' ' + mode)
+except Exception:
+    pass
+" 2>/dev/null || true)
+
+  while IFS=' ' read -r cname cmode; do
+    [ -z "$cname" ] && continue
+
+    # Validate widget name: alphanumeric + underscore only
+    if ! echo "$cname" | grep -qE '^[a-zA-Z_][a-zA-Z0-9_]*$'; then
+      continue
+    fi
+
+    widget_script="$CUSTOM_WIDGETS_DIR/${cname}.sh"
+
+    # Must be a regular file and executable
+    if [ ! -f "$widget_script" ] || [ ! -x "$widget_script" ]; then
+      continue
+    fi
+
+    # Run widget, sanitize output, pass state via env
+    # Hook-level timeout protects against runaway scripts
+    cvalue=$(sanitize "$(CLAUDE_PROJECT_DIR="$CLAUDE_PROJECT_DIR" SPARK_STATE_FILE="$STATE_FILE" "$widget_script" 2>/dev/null || echo "?")" 60)
+
+    if [ "$cmode" = "display" ]; then
+      # Custom display widgets go into alert line (line 2) — not line 1
+      # Line 1 is reserved for built-in layout controlled by themes
+      if [ "$cvalue" != "ok" ]; then
+        alert_parts+=("$cvalue")
+      fi
+    elif [ "$cmode" = "alert" ]; then
+      if [ "$cvalue" != "ok" ]; then
+        alert_parts+=("$cvalue")
+      fi
+    elif [ "$cmode" = "context" ]; then
+      context_parts+=("UNTRUSTED ${cname}: ${cvalue}")
+    fi
+  done <<< "$custom_names"
+fi
+
 # --- Theme: format display line ---
 
 format_theme() {
