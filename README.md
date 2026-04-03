@@ -18,19 +18,31 @@ No VS Code extension. No separate window. No dependencies. Just a shell script.
 
 ## Install
 
-One command, from your project root:
+From your project root:
+
+```bash
+npx spark-hud
+```
+
+Or without npm:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/jbmoutout/spark/main/install.sh | bash
 ```
 
-This downloads the hooks, creates/updates `.claude/settings.json`, and you're done. Next Claude Code prompt shows the HUD.
+To remove:
+
+```bash
+npx spark-hud --remove
+```
+
+That's it. Next Claude Code prompt shows the HUD.
 
 ### Manual install
 
 ```bash
 # 1. Copy hooks to your project
-cp spark.sh spark-precompact.sh /path/to/your/project/.claude/hooks/
+cp spark.sh spark-precompact.sh spark-stop.sh /path/to/your/project/.claude/hooks/
 chmod +x /path/to/your/project/.claude/hooks/spark*.sh
 
 # 2. Add the hooks to your project's .claude/settings.json
