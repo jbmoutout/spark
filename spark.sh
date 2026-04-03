@@ -36,7 +36,7 @@ if [ -f "$CONFIG_FILE" ]; then
   WIDGET_CONFIG=$(cat "$CONFIG_FILE")
 else
   # Default: all display
-  WIDGET_CONFIG='{"widgets":{"branch":"display","diff_weight":"display","files_touched":"context","cost":"display","prompt_count":"context","session_clock":"display","todos":"context","secrets":"display","compaction":"display"}}'
+  WIDGET_CONFIG='{"widgets":{"branch":"display","diff_weight":"display","files_touched":"context","tokens":"display","prompt_count":"context","session_clock":"display","todos":"context","secrets":"display","compaction":"display"}}'
 fi
 
 # --- Sanitize: strip unsafe chars, cap length ---
@@ -105,40 +105,23 @@ except: print('?')
   echo "$elapsed"
 }
 
-widget_cost() {
-  # Read accumulated cost or tokens from state (written by spark-stop.sh)
-  # billing=api → show $X.XX, billing=subscription → show ~NNNk tok
-  local billing=$(echo "$WIDGET_CONFIG" | python3 -c "
-import json, sys
-try:
-    c = json.load(sys.stdin)
-    print(c.get('billing', 'subscription'))
-except: print('subscription')
-" 2>/dev/null || echo "subscription")
-
-  local raw=$(STATE_FILE="$STATE_FILE" BILLING="$billing" python3 << 'PYEOF'
+widget_tokens() {
+  # Read accumulated token usage from state (written by spark-stop.sh)
+  local raw=$(STATE_FILE="$STATE_FILE" python3 << 'PYEOF'
 import json, os
-billing = os.environ.get('BILLING', 'subscription')
 try:
     with open(os.environ['STATE_FILE']) as f: s = json.load(f)
-    if billing == 'api':
-        c = s.get('cost_usd', 0)
-        if c == 0:
-            print('$0')
-        else:
-            print(f'${c:.2f}')
+    inp = s.get('tokens_input', 0)
+    out = s.get('tokens_output', 0)
+    total = inp + out
+    if total == 0:
+        print('0 tok')
+    elif total < 1000:
+        print(f'{total} tok')
+    elif total < 1000000:
+        print(f'{total // 1000}k tok')
     else:
-        inp = s.get('tokens_input', 0)
-        out = s.get('tokens_output', 0)
-        total = inp + out
-        if total == 0:
-            print('0 tok')
-        elif total < 1000:
-            print(f'{total} tok')
-        elif total < 1000000:
-            print(f'{total // 1000}k tok')
-        else:
-            print(f'{total / 1000000:.1f}M tok')
+        print(f'{total / 1000000:.1f}M tok')
 except: print('0 tok')
 PYEOF
   )
@@ -204,11 +187,11 @@ except: print('default')
 # --- Collect raw widget values ---
 
 # Use simple vars instead of associative array (bash 3 compat)
-val_branch="" val_diff_weight="" val_files_touched="" val_cost=""
+val_branch="" val_diff_weight="" val_files_touched="" val_tokens=""
 val_prompt_count="" val_session_clock="" val_secrets="" val_compaction=""
 context_parts=()
 
-for widget in branch diff_weight files_touched cost prompt_count session_clock todos secrets compaction; do
+for widget in branch diff_weight files_touched tokens prompt_count session_clock todos secrets compaction; do
   mode=$(echo "$WIDGET_CONFIG" | WIDGET="$widget" python3 -c "
 import json, sys, os
 try:
@@ -240,7 +223,7 @@ format_theme() {
   local branch="$val_branch"
   local diff="$val_diff_weight"
   local files="$val_files_touched"
-  local cost="$val_cost"
+  local tokens="$val_tokens"
   local prompts="$val_prompt_count"
   local clock="$val_session_clock"
   local secrets="$val_secrets"
@@ -260,25 +243,25 @@ format_theme() {
 
   case "$THEME" in
     minimal)
-      # ⚡ main · $58 · 18m
+      # ⚡ main · 474k tok · 18m
       local b=$(echo "$branch" | sed 's/git:(\(.*\))/\1/')
       local parts="$b"
       if [ -n "$diff" ] && [ "$diff" != "ok" ]; then
         parts="$parts $diff"
       fi
-      if [ -n "$cost" ]; then parts="$parts · $cost"; fi
+      if [ -n "$tokens" ]; then parts="$parts · $tokens"; fi
       if [ -n "$clock" ]; then parts="$parts · $short_clock"; fi
       echo "⚡ ${parts}${alerts}"
       ;;
     starship)
-      # ⚡ ✓ main · $58 · 6m  OR  ⚡ ✗ main +42/-3 · $58 · 18m
+      # ⚡ ✓ main · 474k tok · 6m  OR  ⚡ ✗ main +42/-3 · 474k tok · 18m
       local b=$(echo "$branch" | sed 's/git:(\(.*\))/\1/')
       if [ -z "$diff" ] || [ "$diff" = "ok" ]; then
         local parts="✓ $b"
       else
         local parts="✗ $b $diff"
       fi
-      if [ -n "$cost" ]; then parts="$parts · $cost"; fi
+      if [ -n "$tokens" ]; then parts="$parts · $tokens"; fi
       if [ -n "$clock" ]; then parts="$parts · $short_clock"; fi
       echo "⚡ ${parts}${alerts}"
       ;;
@@ -290,7 +273,7 @@ format_theme() {
       if [ -n "$diff" ] && [ "$diff" != "ok" ]; then
         parts="$parts [${diff}]"
       fi
-      if [ -n "$cost" ]; then parts="$parts [${cost}]"; fi
+      if [ -n "$tokens" ]; then parts="$parts [${cost}]"; fi
       if [ -n "$clock" ]; then parts="$parts [${short_clock}]"; fi
       echo ">> ${parts}${alerts}"
       ;;
@@ -302,17 +285,17 @@ format_theme() {
       if [ -n "$diff" ] && [ "$diff" != "ok" ]; then
         parts="$parts  ${diff}"
       fi
-      if [ -n "$cost" ]; then parts="$parts  ${cost}"; fi
+      if [ -n "$tokens" ]; then parts="$parts  ${cost}"; fi
       if [ -n "$clock" ]; then parts="$parts  ${short_clock}"; fi
       echo "⚡${parts}${alerts}"
       ;;
     *)
-      # default: ⚡ git:(main) · +42/-3 · $58 · 18min
+      # default: ⚡ git:(main) · +42/-3 · 474k tok · 18min
       local parts="$branch"
       if [ -n "$diff" ] && [ "$diff" != "ok" ]; then
         parts="$parts · $diff"
       fi
-      if [ -n "$cost" ]; then parts="$parts · $cost"; fi
+      if [ -n "$tokens" ]; then parts="$parts · $tokens"; fi
       if [ -n "$clock" ]; then parts="$parts · $clock"; fi
       echo "⚡ ${parts}${alerts}"
       ;;

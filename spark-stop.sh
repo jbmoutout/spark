@@ -1,6 +1,6 @@
 #!/bin/bash
 # Spark ⚡ — Stop hook
-# Parses transcript to accumulate token usage and estimate cost.
+# Parses transcript to accumulate token usage.
 
 set -euo pipefail
 
@@ -13,7 +13,7 @@ INPUT=$(cat)
 # Skip if no state file
 [ -f "$STATE_FILE" ] || exit 0
 
-# Extract transcript path and update cost in state
+# Extract transcript path and update tokens in state
 INPUT="$INPUT" STATE_FILE="$STATE_FILE" python3 -c "
 import json, os
 
@@ -59,26 +59,17 @@ try:
 except:
     exit(0)
 
-# Estimate cost (Opus 4.6 pricing as of 2026-04)
-# Input: \$15/MTok, Output: \$75/MTok
-# Cache read: \$1.50/MTok, Cache write: \$18.75/MTok
-cost = (
-    (total_input / 1_000_000) * 15.0
-    + (total_output / 1_000_000) * 75.0
-    + (total_cache_read / 1_000_000) * 1.5
-    + (total_cache_create / 1_000_000) * 18.75
-)
-
-# Update state file
+# Update state file — tokens only, no pricing
 try:
     with open(sf) as f:
         state = json.load(f)
 except:
     state = {}
 
-state['cost_usd'] = round(cost, 2)
 state['tokens_input'] = total_input
 state['tokens_output'] = total_output
+state['tokens_cache_read'] = total_cache_read
+state['tokens_cache_create'] = total_cache_create
 
 try:
     with open(sf, 'w') as f:
