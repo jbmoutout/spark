@@ -42,21 +42,26 @@ fi
 # --- Sanitize: strip unsafe chars, cap length ---
 sanitize() {
   local max_len="${2:-30}"
-  echo "$1" | tr -cd 'a-zA-Z0-9 _./:+-#$' | head -c "$max_len"
+  echo "$1" | tr -cd 'a-zA-Z0-9 _./:+-#$()' | head -c "$max_len"
 }
 
 # --- Widget functions ---
 
 widget_branch() {
-  cd "$CLAUDE_PROJECT_DIR" 2>/dev/null && git branch --show-current 2>/dev/null || echo "no-git"
+  local branch=$(cd "$CLAUDE_PROJECT_DIR" 2>/dev/null && git branch --show-current 2>/dev/null || echo "")
+  if [ -z "$branch" ]; then
+    echo "no-git"
+  else
+    echo "git:(${branch})"
+  fi
 }
 
 widget_diff_weight() {
-  cd "$CLAUDE_PROJECT_DIR" 2>/dev/null || { echo "n/a"; return; }
+  cd "$CLAUDE_PROJECT_DIR" 2>/dev/null || { echo "ok"; return; }
   # Combine staged + unstaged diff stats
   local stat=$(git diff HEAD --shortstat 2>/dev/null || git diff --shortstat 2>/dev/null)
   if [ -z "$stat" ]; then
-    echo "clean"
+    echo "ok"
   else
     local ins=$(echo "$stat" | grep -oE '[0-9]+ insertion' | grep -oE '[0-9]+' || echo "0")
     local del=$(echo "$stat" | grep -oE '[0-9]+ deletion' | grep -oE '[0-9]+' || echo "0")
