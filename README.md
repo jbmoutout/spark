@@ -172,6 +172,13 @@ The `additionalContext` field from a `UserPromptSubmit` hook gets injected at me
 - **context** mode widgets use passive phrasing — Claude absorbs the info silently
 - **alert** mode widgets only appear when triggered (value != "ok")
 
+## Roadmap
+
+- [ ] More built-in widgets — see [WIDGETS.md](WIDGETS.md) for planned widgets and community ideas
+- [ ] Performance monitoring — track Spark's own execution time, flag when it gets slow
+- [ ] Portability to other coding agents — the insight is portable, the implementation is agent-specific
+- [ ] Composable widgets — widgets reading each other's state via the shared state file
+
 ## License
 
 MIT
