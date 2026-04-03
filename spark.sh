@@ -363,18 +363,16 @@ format_line1() {
     [ -n "$tokens" ] && metrics="tokens:$tokens"
     [ -n "$clock" ] && metrics="$metrics · time:$short_clock"
 
+    local version
+    version=$(python3 -c "import json; print(json.load(open('$(cd "$SCRIPT_DIR" && pwd)/package.json'))['version'])" 2>/dev/null || echo "")
     cat << SPLASH
-⚡⚡⚡⚡⚡⚡⚡⚡⚡⚡⚡⚡⚡⚡⚡⚡⚡⚡⚡⚡
+███████████████████████████████
+███████████████████████████████
 
-  _____                  _
- / ____|                | |
-| (___  _ __   __ _ _ __| | __
- \___ \| '_ \\ / _\` | '__| |/ /
- ____) | |_) | (_| | |  |   <
-|_____/| .__/ \\__,_|_|  |_|\\_\\
-        |_|
+𝗦 𝗣 𝗔 𝗥 𝗞
+${version:+v${version} }֍
 
-  ${identity} · ${metrics}
+${identity} · ${metrics}
 SPLASH
   else
     # Delta: no labels, zone grouping, only changed values
@@ -429,9 +427,13 @@ if [ "$IS_FIRST" = "true" ]; then
   if [ ${#manifest_parts[@]} -gt 0 ]; then
     manifest_joined=""
     for i in "${!manifest_parts[@]}"; do
-      manifest_joined="$manifest_joined${NL}  ${manifest_parts[$i]}"
+      if [ "$i" -eq 0 ]; then
+        manifest_joined="active: ${manifest_parts[$i]}"
+      else
+        manifest_joined="${manifest_joined}${NL}${manifest_parts[$i]}"
+      fi
     done
-    display_line="${display_line}${manifest_joined}"
+    display_line="${display_line}${NL}${manifest_joined}"
   fi
 fi
 
@@ -452,7 +454,7 @@ fi
 
 # --- Separator ---
 if [ "$IS_FIRST" = "true" ]; then
-  display_line="${display_line}${NL}${NL}⚡⚡⚡⚡⚡⚡⚡⚡⚡⚡⚡⚡⚡⚡⚡⚡⚡⚡⚡⚡"
+  display_line="${display_line}${NL}${NL}███████████████████████████████${NL}███████████████████████████████"
 else
   display_line="${display_line}${NL}───"
 fi
