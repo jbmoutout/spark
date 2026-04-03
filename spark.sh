@@ -168,13 +168,24 @@ except: print('ok')
   echo "$flag"
 }
 
-# --- Assemble HUD ---
+# --- Get theme ---
 
-display_parts=()
+THEME=$(echo "$WIDGET_CONFIG" | python3 -c "
+import json, sys
+try:
+    c = json.load(sys.stdin)
+    print(c.get('theme', 'default'))
+except: print('default')
+" 2>/dev/null || echo "default")
+
+# --- Collect raw widget values ---
+
+# Use simple vars instead of associative array (bash 3 compat)
+val_branch="" val_diff_weight="" val_files_touched="" val_cost=""
+val_prompt_count="" val_session_clock="" val_secrets="" val_compaction=""
 context_parts=()
 
 for widget in branch diff_weight files_touched cost prompt_count session_clock todos secrets compaction; do
-  # Get widget mode from config
   mode=$(echo "$WIDGET_CONFIG" | WIDGET="$widget" python3 -c "
 import json, sys, os
 try:
@@ -187,41 +198,105 @@ except: print('off')
     continue
   fi
 
-  # Validate mode from config
   if [ "$mode" != "display" ] && [ "$mode" != "context" ]; then
-    mode="off"
-  fi
-
-  if [ "$mode" = "off" ]; then
     continue
   fi
 
-  # Run widget + sanitize output
   value=$(sanitize "$(widget_${widget} 2>/dev/null || echo "?")")
 
-  # Skip "ok" values in display mode (no news = no noise)
-  if [ "$value" = "ok" ] && [ "$mode" = "display" ]; then
-    continue
-  fi
-
   if [ "$mode" = "display" ]; then
-    display_parts+=("$value")
+    eval "val_${widget}='${value//\'/\'\\\'\'}'"
   elif [ "$mode" = "context" ]; then
     context_parts+=("${widget}: ${value}")
   fi
 done
 
-# --- Build output ---
+# --- Theme: format display line ---
 
-display_line=""
-if [ ${#display_parts[@]} -gt 0 ]; then
-  joined=""
-  for i in "${!display_parts[@]}"; do
-    if [ "$i" -gt 0 ]; then joined="$joined · "; fi
-    joined="$joined${display_parts[$i]}"
-  done
-  display_line="⚡ $joined"
-fi
+format_theme() {
+  local branch="$val_branch"
+  local diff="$val_diff_weight"
+  local files="$val_files_touched"
+  local cost="$val_cost"
+  local prompts="$val_prompt_count"
+  local clock="$val_session_clock"
+  local secrets="$val_secrets"
+  local compaction="$val_compaction"
+
+  # Shorten clock for compact themes
+  local short_clock=$(echo "$clock" | sed 's/min$/m/' | sed 's/hour$/h/')
+
+  # Build alert suffix (only when triggered)
+  local alerts=""
+  if [ -n "$secrets" ] && [ "$secrets" != "ok" ]; then
+    alerts="$alerts · $secrets"
+  fi
+  if [ -n "$compaction" ] && [ "$compaction" != "ok" ]; then
+    alerts="$alerts · $compaction"
+  fi
+
+  case "$THEME" in
+    minimal)
+      # ⚡ main · $58 · 18m
+      local b=$(echo "$branch" | sed 's/git:(\(.*\))/\1/')
+      local parts="$b"
+      if [ -n "$diff" ] && [ "$diff" != "ok" ]; then
+        parts="$parts $diff"
+      fi
+      if [ -n "$cost" ]; then parts="$parts · $cost"; fi
+      if [ -n "$clock" ]; then parts="$parts · $short_clock"; fi
+      echo "⚡ ${parts}${alerts}"
+      ;;
+    starship)
+      # ⚡ ✓ main · $58 · 6m  OR  ⚡ ✗ main +42/-3 · $58 · 18m
+      local b=$(echo "$branch" | sed 's/git:(\(.*\))/\1/')
+      if [ -z "$diff" ] || [ "$diff" = "ok" ]; then
+        local parts="✓ $b"
+      else
+        local parts="✗ $b $diff"
+      fi
+      if [ -n "$cost" ]; then parts="$parts · $cost"; fi
+      if [ -n "$clock" ]; then parts="$parts · $short_clock"; fi
+      echo "⚡ ${parts}${alerts}"
+      ;;
+    classic)
+      # VT100/retro terminal — bracketed, uppercase, no frills
+      # Inspired by IBM 3270 / DEC VT100 status lines
+      local b=$(echo "$branch" | sed 's/git:(\(.*\))/\1/' | tr '[:lower:]' '[:upper:]')
+      local parts="[${b}]"
+      if [ -n "$diff" ] && [ "$diff" != "ok" ]; then
+        parts="$parts [${diff}]"
+      fi
+      if [ -n "$cost" ]; then parts="$parts [${cost}]"; fi
+      if [ -n "$clock" ]; then parts="$parts [${short_clock}]"; fi
+      echo ">> ${parts}${alerts}"
+      ;;
+    powerline)
+      # Powerline/Agnoster — segment separators, compact
+      # Inspired by vim-airline / tmux-powerline
+      local b=$(echo "$branch" | sed 's/git:(\(.*\))/\1/')
+      local parts=" ${b}"
+      if [ -n "$diff" ] && [ "$diff" != "ok" ]; then
+        parts="$parts  ${diff}"
+      fi
+      if [ -n "$cost" ]; then parts="$parts  ${cost}"; fi
+      if [ -n "$clock" ]; then parts="$parts  ${short_clock}"; fi
+      echo "⚡${parts}${alerts}"
+      ;;
+    *)
+      # default: ⚡ git:(main) · +42/-3 · $58 · 18min
+      local parts="$branch"
+      if [ -n "$diff" ] && [ "$diff" != "ok" ]; then
+        parts="$parts · $diff"
+      fi
+      if [ -n "$cost" ]; then parts="$parts · $cost"; fi
+      if [ -n "$clock" ]; then parts="$parts · $clock"; fi
+      echo "⚡ ${parts}${alerts}"
+      ;;
+  esac
+}
+
+display_line=$(format_theme)
 
 context_line=""
 if [ ${#context_parts[@]} -gt 0 ]; then
