@@ -46,6 +46,7 @@ install_hook() {
 }
 
 install_hook "spark.sh"
+install_hook "spark-widgets.sh"
 install_hook "spark-precompact.sh"
 install_hook "spark-stop.sh"
 

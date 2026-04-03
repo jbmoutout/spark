@@ -11,6 +11,7 @@
   "files": [
     "bin/",
     "spark.sh",
+    "spark-widgets.sh",
     "spark-precompact.sh",
     "spark-stop.sh"
   ],

@@ -65,6 +65,14 @@ function install() {
   // Create hooks dir
   fs.mkdirSync(HOOKS_DIR, { recursive: true });
 
+  // Copy support files (not hooks, just sourced by spark.sh)
+  for (const file of ['spark-widgets.sh']) {
+    const src = path.join(PKG_DIR, file);
+    const dest = path.join(HOOKS_DIR, file);
+    fs.copyFileSync(src, dest);
+    fs.chmodSync(dest, 0o755);
+  }
+
   // Copy hook scripts
   for (const hook of HOOKS) {
     const src = path.join(PKG_DIR, hook.src);
