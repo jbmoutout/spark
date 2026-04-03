@@ -48,7 +48,7 @@ IS_FIRST=$( [ "$PROMPT_COUNT" = "1" ] && echo "true" || echo "false" )
 if [ -f "$CONFIG_FILE" ]; then
   WIDGET_CONFIG=$(cat "$CONFIG_FILE")
 else
-  WIDGET_CONFIG='{"widgets":{"branch":"display","diff_weight":"display","files_touched":"context","tokens":"display","prompt_count":"context","session_clock":"display","todos":"context","secrets":"alert","compaction":"alert","env_drift":"alert","last_session":"alert","model":"display","plant":"display","fog_of_war":"context","party":"alert","weather":"alert","timezone":"alert"}}'
+  WIDGET_CONFIG='{"widgets":{"branch":"display","diff_weight":"display","files_touched":"context","tokens":"display","prompt_count":"context","session_clock":"display","todos":"context","secrets":"alert","compaction":"alert","env_drift":"alert","last_session":"alert","model":"display","plant":"display","explored":"context","party":"alert","weather":"alert","timezone":"alert"}}'
 fi
 
 # --- Helpers ---
@@ -72,7 +72,7 @@ except Exception: print('default')
 " 2>/dev/null || echo "default")
 
 # --- Built-in widget list ---
-BUILTIN_NAMES="branch diff_weight files_touched tokens prompt_count session_clock todos secrets compaction env_drift last_session model plant fog_of_war party weather timezone"
+BUILTIN_NAMES="branch diff_weight files_touched tokens prompt_count session_clock todos secrets compaction env_drift last_session model plant explored party weather timezone"
 
 # --- Resolve widget modes (single python call) ---
 ALL_MODES=$(echo "$WIDGET_CONFIG" | python3 -c "

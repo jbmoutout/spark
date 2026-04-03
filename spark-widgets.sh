@@ -251,7 +251,7 @@ PYEOF
   echo "${info:-ok}"
 }
 
-widget_fog_of_war() {
+widget_explored() {
   # How many unique files Claude has explored this session
   local count=$(STATE_FILE="$STATE_FILE" python3 -c "
 import json, os
