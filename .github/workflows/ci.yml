@@ -8,7 +8,13 @@ on:
 
 jobs:
   verify:
-    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - ubuntu-latest
+          - macos-latest
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
 
@@ -16,8 +22,13 @@ jobs:
         with:
           node-version: '22'
 
-      - name: Install shellcheck
+      - name: Install shellcheck (Ubuntu)
+        if: matrix.os == 'ubuntu-latest'
         run: sudo apt-get update && sudo apt-get install -y shellcheck
+
+      - name: Install shellcheck (macOS)
+        if: matrix.os == 'macos-latest'
+        run: brew install shellcheck
 
       - name: Check shell syntax
         run: |
@@ -35,4 +46,5 @@ jobs:
         run: npm test
 
       - name: Pack dry run
+        if: matrix.os == 'ubuntu-latest'
         run: npm pack --dry-run
