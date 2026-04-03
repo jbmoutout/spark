@@ -357,7 +357,7 @@ except Exception:
     location = ''
 
 # Fetch from wttr.in — format="%c+%t" gives icon + temp
-url = f'https://wttr.in/{location}?format=%c+%t'
+url = f'https://wttr.in/{location}?format=%C+%t'
 try:
     req = urllib.request.Request(url, headers={'User-Agent': 'spark-hud'})
     with urllib.request.urlopen(req, timeout=3) as resp:
