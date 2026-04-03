@@ -115,7 +115,7 @@ const arg = process.argv[2];
 if (arg === '--remove' || arg === 'remove' || arg === 'uninstall') {
   remove();
 } else if (arg === '--help' || arg === '-h') {
-  console.log('⚡ Spark — A HUD for Claude Code sessions');
+  console.log('⚡ Spark — A HUD for Claude Code');
   console.log('');
   console.log('Usage:');
   console.log('  npx spark-hud           Install Spark in current project');

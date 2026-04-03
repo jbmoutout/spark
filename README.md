@@ -1,6 +1,6 @@
 # ⚡ Spark
 
-Claude Code HUD
+A HUD for Claude Code
 
 Spark is a Claude Code hook that displays a live status line at the top of every response:
 

@@ -1,5 +1,5 @@
 #!/bin/bash
-# Spark ⚡ — A HUD for Claude Code sessions
+# ⚡ Spark — A HUD for Claude Code
 # Pluggable widgets, dual-mode (display/context), computed every prompt.
 
 set -euo pipefail
