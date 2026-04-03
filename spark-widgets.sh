@@ -325,7 +325,7 @@ widget_plant() {
 
   stage=$(STATE_FILE="$STATE_FILE" python3 << 'PYEOF'
 import json, os, datetime
-stages = ['', ',', '.:',  '.|', '.|.', '.:|.', '.:|:', '.:|:.', '.:||:.', '*:|:*']
+stages = ['', '|', '(|', '(|)', '((|)', '((|))', '(((|))', '(((|)))', '((((|)))', '((((|))))']
 try:
     with open(os.environ['STATE_FILE']) as f: s = json.load(f)
     # Accumulate total minutes across all sessions

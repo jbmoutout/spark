@@ -129,7 +129,7 @@ fi
 
 sanitize() {
   local max_len="${2:-30}"
-  printf '%s' "$1" | tr -cd 'a-zA-Z0-9 _./:+#°|*-' | head -c "$max_len"
+  printf '%s' "$1" | tr -cd 'a-zA-Z0-9 _./:+#°|*()-' | head -c "$max_len"
 }
 
 normalize_branch() {
