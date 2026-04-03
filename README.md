@@ -2,6 +2,8 @@
 
 A HUD for Claude Code
 
+![Spark HUD screenshot](screenshot.png)
+
 Spark displays a live status line at the top of every Claude Code response.
 
 **First prompt — preflight with scaffolded labels:**
