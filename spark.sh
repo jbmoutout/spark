@@ -356,15 +356,26 @@ format_line1() {
     done
     echo "⚡ ${joined}"
   elif [ "$IS_FIRST" = "true" ]; then
-    # Preflight: scaffolded labels + zone grouping
-    # Zone 1: identity (branch model) · Zone 2: metrics (tokens time)
-    local identity="$b"
-    [ -n "$model" ] && [ "$model" != "?" ] && identity="$identity $model"
+    # Splash screen preflight
+    local identity="git:$b"
+    [ -n "$model" ] && [ "$model" != "?" ] && identity="$identity · $model"
     local metrics=""
     [ -n "$tokens" ] && metrics="tokens:$tokens"
     [ -n "$clock" ] && metrics="$metrics · time:$short_clock"
-    [ -n "$plant" ] && metrics="$metrics $plant"
-    echo "⚡ ${identity} · ${metrics}"
+
+    cat << SPLASH
+⚡⚡⚡⚡⚡⚡⚡⚡⚡⚡⚡⚡⚡⚡⚡⚡⚡⚡⚡⚡
+
+  _____                  _
+ / ____|                | |
+| (___  _ __   __ _ _ __| | __
+ \___ \| '_ \\ / _\` | '__| |/ /
+ ____) | |_) | (_| | |  |   <
+|_____/| .__/ \\__,_|_|  |_|\\_\\
+        |_|
+
+  ${identity} · ${metrics}
+SPLASH
   else
     # Delta: no labels, zone grouping, only changed values
     local identity="$b"
@@ -403,21 +414,24 @@ if [ "$IS_FIRST" = "true" ]; then
       if [ "$widget" = "weather" ] && [ "$WEATHER_ENABLED" != "true" ]; then
         continue
       fi
-      # Clean display names (strip underscores, shorten)
       case "$widget" in
-        env_drift)     manifest_parts+=("env") ;;
-        last_session)  manifest_parts+=("last") ;;
-        *)             manifest_parts+=("$widget") ;;
+        secrets)       manifest_parts+=("✓ secrets warning") ;;
+        compaction)    manifest_parts+=("✓ compaction alert") ;;
+        env_drift)     manifest_parts+=("✓ environment check") ;;
+        last_session)  ;;
+        party)         ;;
+        weather)       manifest_parts+=("✓ weather") ;;
+        timezone)      manifest_parts+=("✓ timezone") ;;
+        *)             manifest_parts+=("✓ $widget") ;;
       esac
     fi
   done
   if [ ${#manifest_parts[@]} -gt 0 ]; then
     manifest_joined=""
     for i in "${!manifest_parts[@]}"; do
-      [ "$i" -gt 0 ] && manifest_joined="$manifest_joined · "
-      manifest_joined="$manifest_joined${manifest_parts[$i]}"
+      manifest_joined="$manifest_joined${NL}  ${manifest_parts[$i]}"
     done
-    display_line="${display_line}${NL}  active: ${manifest_joined}"
+    display_line="${display_line}${manifest_joined}"
   fi
 fi
 
@@ -437,7 +451,11 @@ if [ -n "$val_last_session" ]; then
 fi
 
 # --- Separator ---
-display_line="${display_line}${NL}───"
+if [ "$IS_FIRST" = "true" ]; then
+  display_line="${display_line}${NL}${NL}⚡⚡⚡⚡⚡⚡⚡⚡⚡⚡⚡⚡⚡⚡⚡⚡⚡⚡⚡⚡"
+else
+  display_line="${display_line}${NL}───"
+fi
 
 # --- Context line ---
 context_line=""
