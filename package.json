@@ -1,6 +1,6 @@
 {
   "name": "spark-hud",
-  "version": "0.5.3",
+  "version": "0.5.4",
   "description": "⚡ A heads-up display for Claude Code sessions",
   "scripts": {
     "test": "node --test"
