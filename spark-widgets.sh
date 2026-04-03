@@ -342,7 +342,7 @@ try:
 except Exception: print('.')
 PYEOF
   )
-  echo "${stage:-.}"
+  echo "${stage}"
 }
 
 widget_weather() {
