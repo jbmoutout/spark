@@ -31,6 +31,14 @@ Spark displays a live status line at the top of every Claude Code response.
 ───
 ```
 
+## Quick Start
+
+Open Claude Code in your project and paste:
+
+> Install Spark HUD on this project. Run `npx spark-hud` to install the hooks. Then set up my preferences — ask me which city I'm in for weather, which timezones I want to track, and whether I prefer the default or compact theme. Add SPARK_WEATHER_LOCATION to my shell profile, update .spark/config.json, and make sure .spark/ is in .gitignore. Confirm everything worked.
+
+Your next prompt will show the ⚡ HUD.
+
 ## Install
 
 ```bash
