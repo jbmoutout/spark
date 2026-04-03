@@ -43,7 +43,12 @@ try:
                 continue
             try:
                 entry = json.loads(line)
+                # Usage can be at entry.usage or entry.message.usage
                 usage = entry.get('usage', {})
+                if not usage:
+                    msg = entry.get('message', {})
+                    if isinstance(msg, dict):
+                        usage = msg.get('usage', {})
                 if usage:
                     total_input += usage.get('input_tokens', 0)
                     total_output += usage.get('output_tokens', 0)
