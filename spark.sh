@@ -56,11 +56,24 @@ print(s['prompt_count'])
 
 IS_FIRST=$( [ "$PROMPT_COUNT" = "1" ] && echo "true" || echo "false" )
 
-# --- Load config ---
+# --- Load config (merge user config over defaults) ---
+DEFAULT_WIDGETS='{"branch":"display","diff_weight":"display","files_touched":"context","tokens":"display","prompt_count":"context","session_clock":"display","todos":"context","secrets":"alert","compaction":"alert","env_drift":"alert","last_session":"alert","model":"display","plant":"display","explored":"context","party":"alert","weather":"alert","timezone":"alert"}'
+
 if [ -f "$CONFIG_FILE" ]; then
-  WIDGET_CONFIG=$(cat "$CONFIG_FILE")
+  WIDGET_CONFIG=$(CONFIG_FILE="$CONFIG_FILE" DEFAULT_WIDGETS="$DEFAULT_WIDGETS" python3 -c "
+import json, os
+defaults = json.loads(os.environ['DEFAULT_WIDGETS'])
+try:
+    with open(os.environ['CONFIG_FILE']) as f: user = json.load(f)
+except Exception: user = {}
+merged = user.copy()
+merged.setdefault('widgets', {})
+for k, v in defaults.items():
+    merged['widgets'].setdefault(k, v)
+print(json.dumps(merged))
+" 2>/dev/null || echo "{\"widgets\":$DEFAULT_WIDGETS}")
 else
-  WIDGET_CONFIG='{"widgets":{"branch":"display","diff_weight":"display","files_touched":"context","tokens":"display","prompt_count":"context","session_clock":"display","todos":"context","secrets":"alert","compaction":"alert","env_drift":"alert","last_session":"alert","model":"display","plant":"display","explored":"context","party":"alert","weather":"alert","timezone":"alert"}}'
+  WIDGET_CONFIG="{\"widgets\":$DEFAULT_WIDGETS}"
 fi
 
 # --- Helpers ---
