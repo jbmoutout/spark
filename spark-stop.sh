@@ -84,6 +84,28 @@ state['tokens_output'] = total_output
 state['tokens_cache_read'] = total_cache_read
 state['tokens_cache_create'] = total_cache_create
 
+# Detect model from last assistant message
+last_model = ''
+try:
+    with open(transcript_path) as f:
+        for line in f:
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                entry = json.loads(line)
+                msg = entry.get('message', {})
+                if isinstance(msg, dict) and msg.get('role') == 'assistant':
+                    m = msg.get('model', '')
+                    if m:
+                        last_model = m
+            except Exception:
+                continue
+except Exception:
+    pass
+if last_model:
+    state['model'] = last_model
+
 # Save session info for last_session widget (persists across sessions)
 import datetime, subprocess
 state['last_session_end'] = datetime.datetime.now(datetime.timezone.utc).isoformat()
