@@ -1,6 +1,6 @@
 {
   "name": "spark-hud",
-  "version": "0.6.1",
+  "version": "0.7.0",
   "description": "⚡ Spark — A HUD for Claude Code",
   "scripts": {
     "test": "node --test"
