@@ -263,7 +263,9 @@ except Exception: pass
     [ -z "$cname" ] && continue
     echo "$cname" | grep -qE '^[a-zA-Z_][a-zA-Z0-9_]*$' || continue
     cscript="$CUSTOM_DIR/${cname}.sh"
-    [ -f "$cscript" ] && [ -x "$cscript" ] || continue
+    if [ ! -f "$cscript" ] || [ ! -x "$cscript" ]; then
+      continue
+    fi
     cval=$(sanitize "$(CLAUDE_PROJECT_DIR="$CLAUDE_PROJECT_DIR" SPARK_STATE_FILE="$STATE_FILE" "$cscript" 2>/dev/null || echo "?")" 60)
     if [ "$cval" != "ok" ]; then
       if [ "$cmode" = "context" ]; then
