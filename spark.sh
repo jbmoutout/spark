@@ -1,6 +1,7 @@
 #!/bin/bash
 # ⚡ Spark — A HUD for Claude Code
 # Orchestrator: loads config, runs widgets, assembles HUD, outputs JSON.
+# Prompt #1 = preflight (full state). Prompt #2+ = delta (what changed).
 
 set -euo pipefail
 
@@ -29,8 +30,8 @@ if [ ! -f "$STATE_FILE" ]; then
   printf '{"session_start":"%s","prompt_count":0}\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > "$STATE_FILE"
 fi
 
-# --- Increment prompt count ---
-STATE_FILE="$STATE_FILE" python3 -c "
+# --- Increment prompt count + read state ---
+PROMPT_COUNT=$(STATE_FILE="$STATE_FILE" python3 -c "
 import json, os
 sf = os.environ['STATE_FILE']
 try:
@@ -38,7 +39,10 @@ try:
 except Exception: s = {}
 s['prompt_count'] = s.get('prompt_count', 0) + 1
 with open(sf, 'w') as f: json.dump(s, f)
-" 2>/dev/null || true
+print(s['prompt_count'])
+" 2>/dev/null || echo "1")
+
+IS_FIRST=$( [ "$PROMPT_COUNT" = "1" ] && echo "true" || echo "false" )
 
 # --- Load config ---
 if [ -f "$CONFIG_FILE" ]; then
@@ -81,6 +85,23 @@ except Exception:
     for _ in '$BUILTIN_NAMES'.split(): print('off')
 " 2>/dev/null || for _ in $BUILTIN_NAMES; do echo "off"; done)
 
+# --- Read previous values from state (for delta detection) ---
+PREV_VALUES=$(STATE_FILE="$STATE_FILE" python3 -c "
+import json, os
+try:
+    with open(os.environ['STATE_FILE']) as f: s = json.load(f)
+    prev = s.get('prev_widgets', {})
+    for k in ['branch','diff_weight','model','tokens']:
+        print(prev.get(k, ''))
+except Exception:
+    for _ in range(4): print('')
+" 2>/dev/null || printf '\n\n\n\n')
+
+prev_branch=$(echo "$PREV_VALUES" | sed -n '1p')
+prev_diff=$(echo "$PREV_VALUES" | sed -n '2p')
+prev_model=$(echo "$PREV_VALUES" | sed -n '3p')
+prev_tokens=$(echo "$PREV_VALUES" | sed -n '4p')
+
 # --- Collect widget values ---
 val_branch="" val_diff_weight="" val_files_touched="" val_tokens=""
 val_prompt_count="" val_session_clock="" val_model=""
@@ -120,15 +141,17 @@ for widget in $BUILTIN_NAMES; do
     if [ "$value" != "ok" ]; then
       case "$widget" in
         last_session)
-          pc=$(STATE_FILE="$STATE_FILE" python3 -c "
-import json, os
-try: print(json.load(open(os.environ['STATE_FILE'])).get('prompt_count', 0))
-except Exception: print(0)
-" 2>/dev/null || echo "0")
-          [ "$pc" = "1" ] && val_last_session="$value"
+          [ "$IS_FIRST" = "true" ] && val_last_session="$value"
           ;;
-        weather|timezone) alert_parts+=("$value") ;;
-        *)                alert_parts+=("△ $value") ;;
+        weather|timezone)
+          # Show on prompt #1 and every 10th prompt
+          if [ "$IS_FIRST" = "true" ] || [ $((PROMPT_COUNT % 10)) -eq 0 ]; then
+            alert_parts+=("$value")
+          fi
+          ;;
+        *)
+          alert_parts+=("△ $value")
+          ;;
       esac
     fi
   elif [ "$mode" = "context" ]; then
@@ -165,42 +188,116 @@ except Exception: pass
   done <<< "$custom_list"
 fi
 
-# --- Format line 1 (theme) ---
+# --- Store current values for next prompt's delta detection ---
+STATE_FILE="$STATE_FILE" python3 -c "
+import json, os
+sf = os.environ['STATE_FILE']
+try:
+    with open(sf) as f: s = json.load(f)
+except Exception: s = {}
+s['prev_widgets'] = {
+    'branch': '$val_branch',
+    'diff_weight': '$val_diff_weight',
+    'model': '$val_model',
+    'tokens': '$val_tokens',
+}
+with open(sf, 'w') as f: json.dump(s, f)
+" 2>/dev/null || true
+
+# --- Strip "tok" suffix from tokens ---
+val_tokens_display=$(echo "$val_tokens" | sed 's/ tok$//')
+
+# --- Format line 1 ---
 format_line1() {
   local branch="$val_branch"
   local diff="$val_diff_weight"
   local model="$val_model"
-  local tokens="$val_tokens"
+  local tokens="$val_tokens_display"
   local clock="$val_session_clock"
   local short_clock=$(echo "$clock" | sed 's/min$/m/' | sed 's/hour$/h/')
 
-  case "$THEME" in
-    compact)
-      local b=$(normalize_branch "$branch")
-      if [ -z "$diff" ] || [ "$diff" = "ok" ]; then
-        local parts="✓ $b"
-      else
-        local parts="✗ $b $diff"
-      fi
-      if [ -n "$model" ] && [ "$model" != "?" ]; then parts="$parts · $model"; fi
-      if [ -n "$tokens" ]; then parts="$parts · $tokens"; fi
-      if [ -n "$clock" ]; then parts="$parts · $short_clock"; fi
-      echo "⚡ ${parts}"
-      ;;
-    *)
-      local parts="$branch"
-      if [ -n "$model" ] && [ "$model" != "?" ]; then parts="$parts · $model"; fi
-      if [ -n "$diff" ] && [ "$diff" != "ok" ]; then parts="$parts · $diff"; fi
-      if [ -n "$tokens" ]; then parts="$parts · $tokens"; fi
-      if [ -n "$clock" ]; then parts="$parts · $clock"; fi
-      echo "⚡ ${parts}"
-      ;;
-  esac
+  if [ "$IS_FIRST" = "true" ]; then
+    # Preflight: show everything
+    case "$THEME" in
+      compact)
+        local b=$(normalize_branch "$branch")
+        if [ -z "$diff" ] || [ "$diff" = "ok" ]; then
+          local parts="✓ $b"
+        else
+          local parts="✗ $b $diff"
+        fi
+        [ -n "$model" ] && [ "$model" != "?" ] && parts="$parts · $model"
+        [ -n "$tokens" ] && parts="$parts · $tokens"
+        [ -n "$clock" ] && parts="$parts · $short_clock"
+        echo "⚡ ${parts}"
+        ;;
+      *)
+        local parts="$branch"
+        [ -n "$model" ] && [ "$model" != "?" ] && parts="$parts · $model"
+        [ -n "$diff" ] && [ "$diff" != "ok" ] && parts="$parts · $diff"
+        [ -n "$tokens" ] && parts="$parts · $tokens"
+        [ -n "$clock" ] && parts="$parts · $clock"
+        echo "⚡ ${parts}"
+        ;;
+    esac
+  else
+    # Delta mode: always show branch, tokens, clock. Others only if changed.
+    local parts=""
+
+    # Branch — always show
+    case "$THEME" in
+      compact) parts=$(normalize_branch "$branch") ;;
+      *)       parts="$branch" ;;
+    esac
+
+    # Model — only if changed
+    if [ -n "$model" ] && [ "$model" != "?" ] && [ "$model" != "$prev_model" ]; then
+      parts="$parts · $model"
+    fi
+
+    # Diff — only if changed
+    if [ -n "$diff" ] && [ "$diff" != "ok" ] && [ "$diff" != "$prev_diff" ]; then
+      parts="$parts · $diff"
+    fi
+
+    # Tokens — always (heartbeat)
+    [ -n "$tokens" ] && parts="$parts · $tokens"
+
+    # Clock — always
+    case "$THEME" in
+      compact) [ -n "$clock" ] && parts="$parts · $short_clock" ;;
+      *)       [ -n "$clock" ] && parts="$parts · $clock" ;;
+    esac
+
+    echo "⚡ ${parts}"
+  fi
 }
 
 display_line=$(format_line1)
 
-# --- Line 2 (alerts + ambient) ---
+# --- Preflight manifest (prompt #1 only) ---
+if [ "$IS_FIRST" = "true" ]; then
+  # Build list of active alert widgets
+  manifest_parts=()
+  midx=0
+  for widget in $BUILTIN_NAMES; do
+    midx=$((midx + 1))
+    mmode=$(echo "$ALL_MODES" | sed -n "${midx}p")
+    if [ "$mmode" = "alert" ]; then
+      manifest_parts+=("$widget")
+    fi
+  done
+  if [ ${#manifest_parts[@]} -gt 0 ]; then
+    manifest_joined=""
+    for i in "${!manifest_parts[@]}"; do
+      [ "$i" -gt 0 ] && manifest_joined="$manifest_joined · "
+      manifest_joined="$manifest_joined${manifest_parts[$i]}"
+    done
+    display_line="${display_line}\n  watching: ${manifest_joined}"
+  fi
+fi
+
+# --- Line 2+ (alerts + ambient) ---
 if [ ${#alert_parts[@]} -gt 0 ]; then
   joined=""
   for i in "${!alert_parts[@]}"; do
@@ -210,10 +307,13 @@ if [ ${#alert_parts[@]} -gt 0 ]; then
   display_line="${display_line}\n${joined}"
 fi
 
-# --- Line 3 (last session, first prompt only) ---
+# --- Last session (prompt #1 only) ---
 if [ -n "$val_last_session" ]; then
   display_line="${display_line}\n↩ $val_last_session"
 fi
+
+# --- Separator ---
+display_line="${display_line}\n───"
 
 # --- Context line ---
 context_line=""
