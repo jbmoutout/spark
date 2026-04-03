@@ -378,7 +378,10 @@ for widget in branch diff_weight files_touched tokens prompt_count session_clock
   elif [ "$mode" = "alert" ]; then
     # Alert mode: only show on line 2 when value != "ok"
     if [ "$value" != "ok" ]; then
-      alert_parts+=("$value")
+      case "$widget" in
+        last_session) alert_parts+=("↩ $value") ;;
+        *)            alert_parts+=("$value") ;;
+      esac
     fi
   elif [ "$mode" = "context" ]; then
     context_parts+=("UNTRUSTED ${widget}: ${value}")
@@ -456,7 +459,7 @@ if [ ${#alert_parts[@]} -gt 0 ]; then
     if [ "$i" -gt 0 ]; then joined="$joined · "; fi
     joined="$joined${alert_parts[$i]}"
   done
-  alert_line="⚠️ $joined"
+  alert_line="△ $joined"
 fi
 
 # Combine lines
