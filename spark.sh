@@ -48,14 +48,14 @@ IS_FIRST=$( [ "$PROMPT_COUNT" = "1" ] && echo "true" || echo "false" )
 if [ -f "$CONFIG_FILE" ]; then
   WIDGET_CONFIG=$(cat "$CONFIG_FILE")
 else
-  WIDGET_CONFIG='{"widgets":{"branch":"display","diff_weight":"display","files_touched":"context","tokens":"display","prompt_count":"context","session_clock":"display","todos":"context","secrets":"alert","compaction":"alert","env_drift":"alert","last_session":"alert","model":"display","weather":"alert","timezone":"alert"}}'
+  WIDGET_CONFIG='{"widgets":{"branch":"display","diff_weight":"display","files_touched":"context","tokens":"display","prompt_count":"context","session_clock":"display","todos":"context","secrets":"alert","compaction":"alert","env_drift":"alert","last_session":"alert","model":"display","plant":"display","weather":"alert","timezone":"alert"}}'
 fi
 
 # --- Helpers ---
 
 sanitize() {
   local max_len="${2:-30}"
-  echo "$1" | tr -cd 'a-zA-Z0-9 _./:+-#°' | head -c "$max_len"
+  echo "$1" | tr -cd 'a-zA-Z0-9 _./:+-#°|*' | head -c "$max_len"
 }
 
 normalize_branch() {
@@ -72,7 +72,7 @@ except Exception: print('default')
 " 2>/dev/null || echo "default")
 
 # --- Built-in widget list ---
-BUILTIN_NAMES="branch diff_weight files_touched tokens prompt_count session_clock todos secrets compaction env_drift last_session model weather timezone"
+BUILTIN_NAMES="branch diff_weight files_touched tokens prompt_count session_clock todos secrets compaction env_drift last_session model plant weather timezone"
 
 # --- Resolve widget modes (single python call) ---
 ALL_MODES=$(echo "$WIDGET_CONFIG" | python3 -c "
@@ -104,7 +104,7 @@ prev_tokens=$(echo "$PREV_VALUES" | sed -n '4p')
 
 # --- Collect widget values ---
 val_branch="" val_diff_weight="" val_files_touched="" val_tokens=""
-val_prompt_count="" val_session_clock="" val_model=""
+val_prompt_count="" val_session_clock="" val_model="" val_plant=""
 context_parts=()
 alert_parts=()
 val_last_session=""
@@ -136,6 +136,7 @@ for widget in $BUILTIN_NAMES; do
       prompt_count)   val_prompt_count="$value" ;;
       session_clock)  val_session_clock="$value" ;;
       model)          val_model="$value" ;;
+      plant)          val_plant="$value" ;;
     esac
   elif [ "$mode" = "alert" ]; then
     if [ "$value" != "ok" ]; then
@@ -217,59 +218,40 @@ format_line1() {
   local short_clock=$(echo "$clock" | sed 's/min$/m/' | sed 's/hour$/h/')
 
   if [ "$IS_FIRST" = "true" ]; then
-    # Preflight: show everything
-    case "$THEME" in
-      compact)
-        local b=$(normalize_branch "$branch")
-        if [ -z "$diff" ] || [ "$diff" = "ok" ]; then
-          local parts="✓ $b"
-        else
-          local parts="✗ $b $diff"
-        fi
-        [ -n "$model" ] && [ "$model" != "?" ] && parts="$parts · $model"
-        [ -n "$tokens" ] && parts="$parts · $tokens"
-        [ -n "$clock" ] && parts="$parts · $short_clock"
-        echo "⚡ ${parts}"
-        ;;
-      *)
-        local parts="$branch"
-        [ -n "$model" ] && [ "$model" != "?" ] && parts="$parts · $model"
-        [ -n "$diff" ] && [ "$diff" != "ok" ] && parts="$parts · $diff"
-        [ -n "$tokens" ] && parts="$parts · $tokens"
-        [ -n "$clock" ] && parts="$parts · $clock"
-        echo "⚡ ${parts}"
-        ;;
-    esac
+    # Preflight: scaffolded labels + zone grouping
+    # Zone 1: identity (branch model) · Zone 2: metrics (tokens time)
+    local b=$(normalize_branch "$branch")
+    local identity="$b"
+    [ -n "$model" ] && [ "$model" != "?" ] && identity="$identity $model"
+    local metrics=""
+    [ -n "$tokens" ] && metrics="tokens:$tokens"
+    [ -n "$clock" ] && metrics="$metrics time:$short_clock"
+    local plant="$val_plant"
+    [ -n "$plant" ] && metrics="$metrics $plant"
+    echo "⚡ ${identity} · ${metrics}"
   else
-    # Delta mode: always show branch, tokens, clock. Others only if changed.
-    local parts=""
-
-    # Branch — always show
-    case "$THEME" in
-      compact) parts=$(normalize_branch "$branch") ;;
-      *)       parts="$branch" ;;
-    esac
+    # Delta: no labels, zone grouping, only changed values
+    local b=$(normalize_branch "$branch")
+    local identity="$b"
 
     # Model — only if changed
     if [ -n "$model" ] && [ "$model" != "?" ] && [ "$model" != "$prev_model" ]; then
-      parts="$parts · $model"
+      identity="$identity $model"
     fi
 
-    # Diff — only if changed
+    # Diff — only if changed (joins identity zone)
     if [ -n "$diff" ] && [ "$diff" != "ok" ] && [ "$diff" != "$prev_diff" ]; then
-      parts="$parts · $diff"
+      identity="$identity $diff"
     fi
 
-    # Tokens — always (heartbeat)
-    [ -n "$tokens" ] && parts="$parts · $tokens"
+    # Metrics — always (heartbeat)
+    local metrics=""
+    [ -n "$tokens" ] && metrics="$tokens"
+    [ -n "$clock" ] && metrics="$metrics $short_clock"
 
-    # Clock — always
-    case "$THEME" in
-      compact) [ -n "$clock" ] && parts="$parts · $short_clock" ;;
-      *)       [ -n "$clock" ] && parts="$parts · $clock" ;;
-    esac
-
-    echo "⚡ ${parts}"
+    local plant="$val_plant"
+    [ -n "$plant" ] && metrics="$metrics $plant"
+    echo "⚡ ${identity} · ${metrics}"
   fi
 }
 

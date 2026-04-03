@@ -251,6 +251,31 @@ PYEOF
   echo "${info:-ok}"
 }
 
+widget_plant() {
+  # A plant that grows with cumulative session time. Persists across sessions.
+  # Stages: . → .: → .| → .|. → .|: → .:|. → .:|: → .:|:. → .:||:. → *:|:*
+  local stage=$(STATE_FILE="$STATE_FILE" python3 << 'PYEOF'
+import json, os, datetime
+stages = ['.', '.:', '.|', '.|.', '.|:', '.:|.', '.:|:', '.:|:.', '.:||:.', '*:|:*']
+try:
+    with open(os.environ['STATE_FILE']) as f: s = json.load(f)
+    # Accumulate total minutes across all sessions
+    total_mins = s.get('plant_total_mins', 0)
+    start = s.get('session_start', '')
+    if start:
+        st = datetime.datetime.fromisoformat(start.replace('Z', '+00:00'))
+        now = datetime.datetime.now(datetime.timezone.utc)
+        current_mins = int((now - st).total_seconds() / 60)
+        total_mins += current_mins
+    # Each stage = ~30 min of cumulative coding (full growth ~5 hours)
+    idx = min(total_mins // 30, len(stages) - 1)
+    print(stages[idx])
+except Exception: print('.')
+PYEOF
+  )
+  echo "${stage:-.}"
+}
+
 widget_weather() {
   local weather=$(STATE_FILE="$STATE_FILE" WIDGET_CONFIG="$WIDGET_CONFIG" python3 << 'PYEOF'
 import json, os, urllib.request, datetime

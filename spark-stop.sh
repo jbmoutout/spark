@@ -106,9 +106,20 @@ except Exception:
 if last_model:
     state['model'] = last_model
 
-# Save session info for last_session widget (persists across sessions)
+# Update plant total minutes (cumulative across sessions)
 import datetime, subprocess
-state['last_session_end'] = datetime.datetime.now(datetime.timezone.utc).isoformat()
+now = datetime.datetime.now(datetime.timezone.utc)
+start_str = state.get('session_start', '')
+if start_str:
+    try:
+        start = datetime.datetime.fromisoformat(start_str.replace('Z', '+00:00'))
+        session_mins = int((now - start).total_seconds() / 60)
+        state['plant_total_mins'] = state.get('plant_total_mins', 0) + session_mins
+    except Exception:
+        pass
+
+# Save session info for last_session widget (persists across sessions)
+state['last_session_end'] = now.isoformat()
 try:
     branch = subprocess.check_output(
         ['git', 'branch', '--show-current'],
