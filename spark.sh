@@ -36,7 +36,7 @@ if [ -f "$CONFIG_FILE" ]; then
   WIDGET_CONFIG=$(cat "$CONFIG_FILE")
 else
   # Default: all display
-  WIDGET_CONFIG='{"widgets":{"branch":"display","diff_weight":"display","files_touched":"display","cost":"display","prompt_count":"display","session_clock":"display","todos":"context","secrets":"display","compaction":"display"}}'
+  WIDGET_CONFIG='{"widgets":{"branch":"display","diff_weight":"display","files_touched":"context","cost":"display","prompt_count":"context","session_clock":"display","todos":"context","secrets":"display","compaction":"display"}}'
 fi
 
 # --- Sanitize: strip unsafe chars, cap length ---
@@ -212,7 +212,7 @@ display_line=""
 if [ ${#display_parts[@]} -gt 0 ]; then
   joined=""
   for i in "${!display_parts[@]}"; do
-    if [ "$i" -gt 0 ]; then joined="$joined | "; fi
+    if [ "$i" -gt 0 ]; then joined="$joined · "; fi
     joined="$joined${display_parts[$i]}"
   done
   display_line="⚡ $joined"
