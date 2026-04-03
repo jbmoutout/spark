@@ -84,6 +84,20 @@ state['tokens_output'] = total_output
 state['tokens_cache_read'] = total_cache_read
 state['tokens_cache_create'] = total_cache_create
 
+# Save session info for last_session widget (persists across sessions)
+import datetime, subprocess
+state['last_session_end'] = datetime.datetime.now(datetime.timezone.utc).isoformat()
+try:
+    branch = subprocess.check_output(
+        ['git', 'branch', '--show-current'],
+        cwd=os.path.dirname(sf).replace('/.spark', ''),
+        stderr=subprocess.DEVNULL
+    ).decode().strip()
+    if branch:
+        state['last_session_branch'] = branch
+except Exception:
+    pass
+
 try:
     with open(sf, 'w') as f:
         json.dump(state, f)
