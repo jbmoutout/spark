@@ -47,7 +47,7 @@ if [ -f "$CONFIG_FILE" ]; then
   WIDGET_CONFIG=$(cat "$CONFIG_FILE")
 else
   # Default: all display
-  WIDGET_CONFIG='{"widgets":{"branch":"display","diff_weight":"display","files_touched":"context","tokens":"display","prompt_count":"context","session_clock":"display","todos":"context","secrets":"alert","compaction":"alert","env_drift":"alert","last_session":"alert","model":"display","weather":"off","timezone":"off"}}'
+  WIDGET_CONFIG='{"widgets":{"branch":"display","diff_weight":"display","files_touched":"context","tokens":"display","prompt_count":"context","session_clock":"display","todos":"context","secrets":"alert","compaction":"alert","env_drift":"alert","last_session":"alert","model":"display","weather":"alert","timezone":"alert"}}'
 fi
 
 # --- Sanitize: strip unsafe chars, cap length ---
@@ -511,8 +511,11 @@ except Exception: print(0)
             val_last_session="$value"
           fi
           ;;
-        *)
+        weather|timezone)
           alert_parts+=("$value")
+          ;;
+        *)
+          alert_parts+=("△ $value")
           ;;
       esac
     fi
@@ -588,13 +591,7 @@ format_theme() {
   local clock="$val_session_clock"
   local secrets="$val_secrets"
   local compaction="$val_compaction"
-  local weather="$val_weather"
-  local tz="$val_timezone"
-
-  # Build display suffix for optional widgets (weather, timezone)
   local suffix=""
-  if [ -n "$weather" ] && [ "$weather" != "ok" ]; then suffix="$suffix · $weather"; fi
-  if [ -n "$tz" ] && [ "$tz" != "ok" ]; then suffix="$suffix · $tz"; fi
 
   # Shorten clock for compact themes
   local short_clock=$(echo "$clock" | sed 's/min$/m/' | sed 's/hour$/h/')
@@ -661,7 +658,7 @@ if [ ${#alert_parts[@]} -gt 0 ]; then
     if [ "$i" -gt 0 ]; then joined="$joined · "; fi
     joined="$joined${alert_parts[$i]}"
   done
-  alert_line="△ $joined"
+  alert_line="$joined"
 fi
 
 # Build last_session line (separate from alerts, first prompt only)
