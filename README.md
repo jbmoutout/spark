@@ -7,8 +7,7 @@ Spark displays a live status line at the top of every Claude Code response.
 **First prompt — preflight with scaffolded labels:**
 ```
 ⚡ git:main · tokens:0 · time:0m
-  active: secrets · compaction · env · weather · timezone
-Overcast +11° · Bangkok 18:52
+  active: secrets · compaction · env · last · party
 ───
 ```
 
@@ -44,11 +43,17 @@ Or from a checked-out copy:
 ./install.sh
 ```
 
+`install.sh` expects the hook files to live next to it in the repo checkout. It does not download executable hook code from GitHub at install time.
+
 To remove:
 
 ```bash
 npx spark-hud --remove
 ```
+
+## Releasing
+
+See [RELEASING.md](RELEASING.md) for the release checklist. CI and publish both run shell syntax checks, `shellcheck`, `npm test`, and `npm pack --dry-run`.
 
 ## How it works
 
@@ -66,9 +71,9 @@ The `Stop` and `PreCompact` hooks are optional — Spark works without them, you
 
 Spark uses **progressive disclosure**: the first prompt teaches you what each value means (with labels), then strips the labels on subsequent prompts once you've learned.
 
-The HUD shows **only what changed** between prompts. Branch and clock always show (your anchor). Diff weight and model only appear when they change. Weather and timezone refresh every 10 prompts.
+The HUD shows **only what changed** between prompts. Branch and clock always show (your anchor). Diff weight and model only appear when they change. Opt-in ambient widgets such as weather and timezone refresh every 10 prompts.
 
-This is [calm technology](https://en.wikipedia.org/wiki/Calm_technology) — information that lives in your periphery and shifts to the center only when it matters.
+A session rolls over after 30 minutes of inactivity by default. Override that threshold with `SPARK_SESSION_IDLE_SECS`.
 
 ## Widgets
 
@@ -100,8 +105,8 @@ Each widget runs in one of three modes:
 | `env_drift` | Node version mismatch, missing .env, Docker down | alert | Silent when clean |
 | `last_session` | Previous session: branch, time ago, TODOs | alert | First prompt only |
 | `party` | Sub-agents Claude spawned | alert | Unique to Spark. Needs Stop hook |
-| `weather` | Local weather (cached, opt-in network call) | alert | Set `weather_location` in config |
-| `timezone` | City clocks | alert | Set `timezones` array in config |
+| `weather` | Local weather (cached, opt-in network call) | off | Export `SPARK_WEATHER_LOCATION` and set widget mode to `alert` |
+| `timezone` | City clocks | off | Set `timezones` array and widget mode to `alert` |
 
 ## Themes
 
@@ -131,6 +136,7 @@ echo "up $(uptime -p | sed 's/up //')"
 Rules:
 - Widget must be listed in config AND exist as an executable `.sh` file
 - Files in `.spark/widgets/` that aren't in config will never run
+- Project-defined widgets are disabled unless you export `SPARK_ENABLE_UNSAFE_CUSTOM_WIDGETS=1`
 - Output is sanitized (ASCII-only, length-capped to 60 chars)
 - Custom widgets render on line 2, not line 1
 - Env vars available: `CLAUDE_PROJECT_DIR`, `SPARK_STATE_FILE`
@@ -143,7 +149,6 @@ Create `.spark/config.json` in your project root:
 ```json
 {
   "theme": "default",
-  "weather_location": "Paris",
   "timezones": ["Asia/Bangkok", "America/New_York"],
   "widgets": {
     "branch": "display",
@@ -161,25 +166,28 @@ Create `.spark/config.json` in your project root:
     "env_drift": "alert",
     "last_session": "alert",
     "party": "alert",
-    "weather": "alert",
-    "timezone": "alert"
+    "weather": "off",
+    "timezone": "off"
   }
 }
 ```
 
 No config file = sensible defaults.
 
+To enable weather, export `SPARK_WEATHER_LOCATION` outside the repo, for example `export SPARK_WEATHER_LOCATION=Paris`, then set `"weather": "alert"` in config.
+
 ## Security
 
 Spark hooks inject session metadata into Claude's context via `additionalContext`. Review the source before installing.
 
 - No network calls during normal hook execution (weather is opt-in, cached 30min)
+- Weather requires explicit opt-in via `SPARK_WEATHER_LOCATION`; repo config alone cannot trigger network requests
 - Only reads git metadata, a local state file, and (for Stop hook) the session transcript
 - Widget output is sanitized (ASCII-only, length-capped)
-- All python blocks use `os.environ` — no string interpolation
+- Dynamic widget state is passed into Python via `os.environ` rather than interpolating untrusted values into Python source
 - Injected values are marked as untrusted in the prompt
-- Custom widgets require explicit opt-in via config
-- Prefer `npx spark-hud` or a local install; pin raw downloads to a tag or commit
+- Custom widgets require explicit opt-in via both config and `SPARK_ENABLE_UNSAFE_CUSTOM_WIDGETS=1`
+- Prefer `npx spark-hud` or a local install from a checked-out repo
 
 ## Requirements
 

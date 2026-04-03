@@ -4,11 +4,9 @@
 
 set -euo pipefail
 
-SPARK_REPO="${SPARK_REPO:-https://raw.githubusercontent.com/jbmoutout/spark/main}"
 HOOKS_DIR="${HOOKS_DIR:-.claude/hooks}"
 SETTINGS_FILE="${SETTINGS_FILE:-.claude/settings.json}"
-SCRIPT_SOURCE_DIR="$(CDPATH= cd -- "$(dirname -- "${BASH_SOURCE[0]:-$0}")" && pwd)"
-REMOTE_FALLBACK=0
+SCRIPT_SOURCE_DIR="$(CDPATH='' cd -- "$(dirname -- "${BASH_SOURCE[0]:-$0}")" && pwd)"
 
 if [ "$(pwd)" = "/" ] || [ "$(pwd)" = "$HOME" ]; then
   echo "⚠️  Refusing to install Spark into $(pwd)."
@@ -31,16 +29,12 @@ install_hook() {
   local local_source="$SCRIPT_SOURCE_DIR/$hook_name"
   local destination="$HOOKS_DIR/$hook_name"
 
-  if [ -f "$local_source" ]; then
-    cp "$local_source" "$destination"
-  else
-    REMOTE_FALLBACK=1
-    command -v curl &>/dev/null || {
-      echo "❌ curl is required when hook files are not available next to install.sh." >&2
-      exit 1
-    }
-    curl -fsSL "$SPARK_REPO/$hook_name" -o "$destination"
-  fi
+  [ -f "$local_source" ] || {
+    echo "❌ Spark hook files must be available next to install.sh." >&2
+    exit 1
+  }
+
+  cp "$local_source" "$destination"
 
   chmod +x "$destination"
 }
@@ -110,13 +104,7 @@ if backup:
     print(f"  Backed up invalid {sf} to {backup}")
 PY
 
-if [ "$REMOTE_FALLBACK" -eq 1 ]; then
-  echo "  Downloaded hook files from $SPARK_REPO"
-  echo "  Prefer a pinned tag or commit when using raw downloads."
-else
-  echo "  Installed hook files from $SCRIPT_SOURCE_DIR"
-fi
-
+echo "  Installed hook files from $SCRIPT_SOURCE_DIR"
 echo "  Updated $SETTINGS_FILE"
 echo ""
 echo "⚡ Spark installed. Start a Claude Code session to see the HUD."

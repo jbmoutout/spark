@@ -43,8 +43,8 @@ Built-in widgets ship with Spark. Community widgets live in `.spark/widgets/`.
 
 | Widget | Shows | Default |
 |--------|-------|---------|
-| `weather` | Local weather, cached 30min (opt-in network call) | alert |
-| `timezone` | City clocks from config | alert |
+| `weather` | Local weather, cached 30min (opt-in network call) | off |
+| `timezone` | City clocks from config | off |
 | `pet` | ASCII pet reacts to code state: `(=^.^=)` clean, `(>_<)` tests fail | *planned* |
 | `glyph` | Unique ASCII pattern per session from hash | *planned* |
 | `rune` | Random unicode symbol each prompt | *planned* |
@@ -120,6 +120,8 @@ Add it to `.spark/config.json`:
 ```
 
 That's it. Runs every prompt. Output sanitized to 60 ASCII chars.
+
+Project-defined widgets are disabled unless you explicitly export `SPARK_ENABLE_UNSAFE_CUSTOM_WIDGETS=1`.
 
 Available env vars: `CLAUDE_PROJECT_DIR`, `SPARK_STATE_FILE`.
 

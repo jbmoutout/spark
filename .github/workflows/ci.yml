@@ -1,26 +1,22 @@
-name: Publish to npm
+name: CI
 
 on:
+  pull_request:
   push:
+    branches:
+      - main
     tags:
       - 'v*'
 
 jobs:
-  publish:
+  verify:
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      id-token: write
-    environment:
-      name: npm
-      url: https://www.npmjs.com/package/spark-hud
     steps:
       - uses: actions/checkout@v4
 
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-          registry-url: 'https://registry.npmjs.org'
 
       - name: Install shellcheck
         run: sudo apt-get update && sudo apt-get install -y shellcheck
@@ -42,7 +38,3 @@ jobs:
 
       - name: Pack dry run
         run: npm pack --dry-run
-
-      - run: echo "NODE_AUTH_TOKEN=" >> $GITHUB_ENV
-
-      - run: npx -y npm@latest publish --provenance --access public

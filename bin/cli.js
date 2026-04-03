@@ -13,6 +13,36 @@ const HOOKS = [
   { src: 'spark-stop.sh', timeout: 5000, event: 'Stop' },
 ];
 
+function ensureSafeProjectDir() {
+  const normalizePath = (target) => {
+    try {
+      return fs.realpathSync.native(target);
+    } catch {
+      return path.resolve(target);
+    }
+  };
+
+  const cwd = normalizePath(process.cwd());
+  const home = process.env.HOME ? normalizePath(process.env.HOME) : null;
+  if (cwd === '/' || (home && path.resolve(cwd) === home)) {
+    console.error(`⚠️  Refusing to install Spark into ${cwd}.`);
+    console.error('   Run this from your project directory instead.');
+    process.exit(1);
+  }
+}
+
+function isSparkHookCommand(command) {
+  if (typeof command !== 'string') {
+    return false;
+  }
+
+  return HOOKS.some((hook) => (
+    command === `"$CLAUDE_PROJECT_DIR"/.claude/hooks/${hook.src}`
+    || command === `.claude/hooks/${hook.src}`
+    || command.endsWith(`/.claude/hooks/${hook.src}`)
+  ));
+}
+
 function loadSettingsWithBackup(settingsFile) {
   if (!fs.existsSync(settingsFile)) {
     return {};
@@ -45,7 +75,7 @@ function remove() {
       for (const event of Object.keys(hooks)) {
         for (const matcher of hooks[event]) {
           if (matcher.hooks) {
-            matcher.hooks = matcher.hooks.filter(h => !h.command.includes('spark'));
+            matcher.hooks = matcher.hooks.filter((hook) => !isSparkHookCommand(hook.command));
           }
         }
         // Remove empty matchers
@@ -60,6 +90,7 @@ function remove() {
 }
 
 function install() {
+  ensureSafeProjectDir();
   console.log('⚡ Installing Spark...');
 
   // Create hooks dir
