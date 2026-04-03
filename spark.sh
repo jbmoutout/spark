@@ -47,13 +47,13 @@ if [ -f "$CONFIG_FILE" ]; then
   WIDGET_CONFIG=$(cat "$CONFIG_FILE")
 else
   # Default: all display
-  WIDGET_CONFIG='{"widgets":{"branch":"display","diff_weight":"display","files_touched":"context","tokens":"display","prompt_count":"context","session_clock":"display","todos":"context","secrets":"alert","compaction":"alert","env_drift":"alert","last_session":"alert","model":"display","ctx_health":"alert"}}'
+  WIDGET_CONFIG='{"widgets":{"branch":"display","diff_weight":"display","files_touched":"context","tokens":"display","prompt_count":"context","session_clock":"display","todos":"context","secrets":"alert","compaction":"alert","env_drift":"alert","last_session":"alert","model":"display"}}'
 fi
 
 # --- Sanitize: strip unsafe chars, cap length ---
 sanitize() {
   local max_len="${2:-30}"
-  echo "$1" | tr -cd 'a-zA-Z0-9 _./:+-#%\[\]' | head -c "$max_len"
+  echo "$1" | tr -cd 'a-zA-Z0-9 _./:+-#' | head -c "$max_len"
 }
 
 normalize_branch_label() {
@@ -251,35 +251,6 @@ except Exception: print('?')
   echo "$model"
 }
 
-widget_ctx_health() {
-  # Show context usage as fraction + simple bar
-  # Uses token data from state (written by spark-stop.sh)
-  local bar=$(STATE_FILE="$STATE_FILE" python3 << 'PYEOF'
-import json, os
-try:
-    with open(os.environ['STATE_FILE']) as f: s = json.load(f)
-    inp = s.get('tokens_input', 0)
-    out = s.get('tokens_output', 0)
-    cache_read = s.get('tokens_cache_read', 0)
-    cache_create = s.get('tokens_cache_create', 0)
-    # Approximate context usage (input + cache is what fills the window)
-    used = inp + cache_read + cache_create
-    limit = 1000000  # 1M default context window
-    if used == 0:
-        print('ok')
-        exit()
-    ratio = min(used / limit, 1.0)
-    filled = int(ratio * 10)
-    empty = 10 - filled
-    pct = int(ratio * 100)
-    bar = '#' * filled + '-' * empty
-    print(f'ctx:[{bar}] {pct}%')
-except Exception: print('ok')
-PYEOF
-  )
-  echo "${bar:-ok}"
-}
-
 widget_env_drift() {
   cd "$CLAUDE_PROJECT_DIR" 2>/dev/null || { echo "ok"; return; }
   local issues=""
@@ -370,7 +341,7 @@ except Exception: print('default')
 # Use simple vars instead of associative array (bash 3 compat)
 val_branch="" val_diff_weight="" val_files_touched="" val_tokens=""
 val_prompt_count="" val_session_clock="" val_todos="" val_secrets="" val_compaction=""
-val_env_drift="" val_last_session="" val_model="" val_ctx_health=""
+val_env_drift="" val_last_session="" val_model=""
 context_parts=()
 
 # Resolve all widget modes in a single python3 call
@@ -379,17 +350,17 @@ import json, sys
 try:
     c = json.load(sys.stdin)
     w = c.get('widgets', {})
-    for name in ['branch','diff_weight','files_touched','tokens','prompt_count','session_clock','todos','secrets','compaction','env_drift','last_session','model','ctx_health']:
+    for name in ['branch','diff_weight','files_touched','tokens','prompt_count','session_clock','todos','secrets','compaction','env_drift','last_session','model']:
         print(w.get(name, 'off'))
 except Exception:
-    for _ in range(13): print('off')
-" 2>/dev/null || printf 'off\noff\noff\noff\noff\noff\noff\noff\noff\noff\noff\noff\noff\n')
+    for _ in range(12): print('off')
+" 2>/dev/null || printf 'off\noff\noff\noff\noff\noff\noff\noff\noff\noff\noff\noff\n')
 
 # Read modes into array
 idx=0
 alert_parts=()
 
-for widget in branch diff_weight files_touched tokens prompt_count session_clock todos secrets compaction env_drift last_session model ctx_health; do
+for widget in branch diff_weight files_touched tokens prompt_count session_clock todos secrets compaction env_drift last_session model; do
   idx=$((idx + 1))
   mode=$(echo "$ALL_MODES" | sed -n "${idx}p")
 
@@ -411,7 +382,6 @@ for widget in branch diff_weight files_touched tokens prompt_count session_clock
     env_drift)      value=$(sanitize "$(widget_env_drift 2>/dev/null || echo "?")" 60) ;;
     last_session)   value=$(sanitize "$(widget_last_session 2>/dev/null || echo "?")" 60) ;;
     model)          value=$(sanitize "$(widget_model 2>/dev/null || echo "?")") ;;
-    ctx_health)     value=$(sanitize "$(widget_ctx_health 2>/dev/null || echo "?")" 40) ;;
     *)              continue ;;
   esac
 
@@ -429,7 +399,6 @@ for widget in branch diff_weight files_touched tokens prompt_count session_clock
       env_drift)      val_env_drift="$value" ;;
       last_session)   val_last_session="$value" ;;
       model)          val_model="$value" ;;
-      ctx_health)     val_ctx_health="$value" ;;
     esac
   elif [ "$mode" = "alert" ]; then
     # Alert mode: only show on line 2 when value != "ok"
