@@ -106,20 +106,43 @@ except: print('?')
 }
 
 widget_cost() {
-  # Read accumulated cost from state (written by spark-stop.sh)
-  local raw=$(STATE_FILE="$STATE_FILE" python3 << 'PYEOF'
+  # Read accumulated cost or tokens from state (written by spark-stop.sh)
+  # billing=api → show $X.XX, billing=subscription → show ~NNNk tok
+  local billing=$(echo "$WIDGET_CONFIG" | python3 -c "
+import json, sys
+try:
+    c = json.load(sys.stdin)
+    print(c.get('billing', 'subscription'))
+except: print('subscription')
+" 2>/dev/null || echo "subscription")
+
+  local raw=$(STATE_FILE="$STATE_FILE" BILLING="$billing" python3 << 'PYEOF'
 import json, os
+billing = os.environ.get('BILLING', 'subscription')
 try:
     with open(os.environ['STATE_FILE']) as f: s = json.load(f)
-    c = s.get('cost_usd', 0)
-    if c == 0:
-        print('0.00')
+    if billing == 'api':
+        c = s.get('cost_usd', 0)
+        if c == 0:
+            print('$0')
+        else:
+            print(f'${c:.2f}')
     else:
-        print(f'{c:.2f}')
-except: print('0.00')
+        inp = s.get('tokens_input', 0)
+        out = s.get('tokens_output', 0)
+        total = inp + out
+        if total == 0:
+            print('0 tok')
+        elif total < 1000:
+            print(f'{total} tok')
+        elif total < 1000000:
+            print(f'{total // 1000}k tok')
+        else:
+            print(f'{total / 1000000:.1f}M tok')
+except: print('0 tok')
 PYEOF
   )
-  echo "\$${raw:-0.00}"
+  echo "${raw:-0 tok}"
 }
 
 widget_todos() {
