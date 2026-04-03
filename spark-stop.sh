@@ -162,6 +162,9 @@ try:
 except Exception:
     pass
 
+# Reset prompt_count to signal "session ended" — next session init will clean up
+state['prompt_count'] = 0
+
 try:
     with open(sf, 'w') as f:
         json.dump(state, f)

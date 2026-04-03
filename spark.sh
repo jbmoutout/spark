@@ -24,19 +24,31 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 # Source widget functions
 . "$SCRIPT_DIR/spark-widgets.sh"
 
-# --- Init state ---
-if [ ! -f "$STATE_FILE" ]; then
-  mkdir -p "$SPARK_DIR"
-  printf '{"session_start":"%s","prompt_count":0}\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > "$STATE_FILE"
-fi
-
-# --- Increment prompt count + read state ---
+# --- Init state + session hygiene ---
+mkdir -p "$SPARK_DIR"
 PROMPT_COUNT=$(STATE_FILE="$STATE_FILE" python3 -c "
-import json, os
+import json, os, datetime
+
 sf = os.environ['STATE_FILE']
+
+# Load existing state (or empty)
 try:
     with open(sf) as f: s = json.load(f)
 except Exception: s = {}
+
+# Detect new session: no session_start, or prompt_count is 0/missing
+is_new = s.get('prompt_count', 0) == 0 or not s.get('session_start')
+
+if is_new:
+    # Preserve persistent keys, reset everything else
+    persistent = {}
+    for key in ['plant_total_mins', 'last_session_end', 'last_session_branch', 'last_session_todos']:
+        if key in s:
+            persistent[key] = s[key]
+    s = persistent
+    s['session_start'] = datetime.datetime.now(datetime.timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')
+    s['prompt_count'] = 0
+
 s['prompt_count'] = s.get('prompt_count', 0) + 1
 with open(sf, 'w') as f: json.dump(s, f)
 print(s['prompt_count'])
