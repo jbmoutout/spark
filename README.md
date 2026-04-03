@@ -5,10 +5,10 @@ Claude Code HUD
 Spark is a Claude Code hook that displays a live status line at the top of every response:
 
 ```
-⚡ main | +42/-3 | 4 files | #12 | 23min
+⚡ git:(main) · +42/-3 · 474k tok · 23min
 ```
 
-Branch. Diff weight. Files touched. Prompt count. Session clock. Glanceable, always there.
+Branch. Diff weight. Token usage. Session clock. Glanceable, always there.
 
 ## How it works
 
@@ -24,10 +24,10 @@ From your project root:
 npx spark-hud
 ```
 
-Or without npm:
+Or without npm, from a checked-out copy of this repo:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/jbmoutout/spark/main/install.sh | bash
+./install.sh
 ```
 
 To remove:
@@ -76,12 +76,24 @@ Add to `.claude/settings.json`:
           }
         ]
       }
+    ],
+    "Stop": [
+      {
+        "matcher": ".*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/spark-stop.sh",
+            "timeout": 5000
+          }
+        ]
+      }
     ]
   }
 }
 ```
 
-The PreCompact hook is optional — it enables the compaction warning widget. Everything else works with just the UserPromptSubmit hook.
+The `PreCompact` hook is optional for compaction warnings. The `Stop` hook is optional for token tracking.
 
 That's it. Next Claude Code prompt shows the HUD.
 
@@ -101,9 +113,9 @@ Each widget computes one value. Widgets can run in two modes:
 |--------|-------|---------|-------|
 | `branch` | Current git branch | display | |
 | `diff_weight` | +N/-N lines changed | display | |
-| `files_touched` | Modified + untracked file count | display | |
-| `cost` | Estimated session cost ($X.XX) | display | Needs Stop hook, one-prompt delay |
-| `prompt_count` | Prompts this session (#N) | display | |
+| `files_touched` | Modified + untracked file count | context | |
+| `tokens` | Session token usage | display | Needs Stop hook, one-response delay |
+| `prompt_count` | Prompts this session (#N) | context | |
 | `session_clock` | Time since session start | display | |
 | `todos` | TODO/FIXME/HACK count in changed files | context | |
 | `secrets` | Detects API keys in staged files | display | Silent when clean |
@@ -125,18 +137,19 @@ Create `.spark/config.json` in your project root to customize:
 }
 ```
 
-No config file = all widgets in display mode.
+No config file = built-in defaults: `branch`, `diff_weight`, `tokens`, and `session_clock` display; `files_touched`, `prompt_count`, and `todos` stay in context; `secrets` and `compaction` display only when triggered.
 
 ## Security
 
 Spark is a Claude Code hook that injects session metadata into Claude's context via `additionalContext`. This means it can influence Claude's behavior — review the source before installing.
 
-- No network calls, no dependencies, single file
+- Prefer `npx spark-hud` or a checked-out local install; pin raw downloads to a tag or commit if you use them
+- No network calls during normal hook execution
 - Only reads git metadata and a local state file
-- Prompt content received on stdin is discarded (`cat > /dev/null`)
+- `UserPromptSubmit` and `PreCompact` discard stdin; `Stop` reads only hook JSON plus a validated transcript path
 - Widget output is sanitized (ASCII-only, length-capped)
 - All python blocks use `os.environ` — no string interpolation
-- Injected values are marked as untrusted in the prompt
+- Injected values are explicitly marked as untrusted data in the prompt
 - Verify the source: `shasum -a 256 spark.sh`
 
 ## Requirements

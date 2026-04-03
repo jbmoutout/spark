@@ -13,6 +13,21 @@ const HOOKS = [
   { src: 'spark-stop.sh', timeout: 5000, event: 'Stop' },
 ];
 
+function loadSettingsWithBackup(settingsFile) {
+  if (!fs.existsSync(settingsFile)) {
+    return {};
+  }
+
+  try {
+    return JSON.parse(fs.readFileSync(settingsFile, 'utf8'));
+  } catch {
+    const backup = `${settingsFile}.spark.bak`;
+    fs.copyFileSync(settingsFile, backup);
+    console.log(`  Backed up invalid ${path.relative(process.cwd(), settingsFile)} to ${path.relative(process.cwd(), backup)}`);
+    return {};
+  }
+}
+
 function remove() {
   let removed = 0;
   for (const hook of HOOKS) {
@@ -59,12 +74,7 @@ function install() {
   }
 
   // Create or update settings.json
-  let settings = {};
-  if (fs.existsSync(SETTINGS_FILE)) {
-    try {
-      settings = JSON.parse(fs.readFileSync(SETTINGS_FILE, 'utf8'));
-    } catch {}
-  }
+  const settings = loadSettingsWithBackup(SETTINGS_FILE);
 
   const hooks = settings.hooks = settings.hooks || {};
 

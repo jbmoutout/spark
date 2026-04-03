@@ -4,29 +4,42 @@
 
 set -euo pipefail
 
+[ -n "${CLAUDE_PROJECT_DIR:-}" ] || { cat > /dev/null; exit 0; }
+command -v python3 &>/dev/null || { cat > /dev/null; exit 0; }
+
 SPARK_DIR="$CLAUDE_PROJECT_DIR/.spark"
 STATE_FILE="$SPARK_DIR/state.json"
-
-# Read hook input from stdin
-INPUT=$(cat)
+MAX_TRANSCRIPT_BYTES="${SPARK_MAX_TRANSCRIPT_BYTES:-5242880}"
 
 # Skip if no state file
-[ -f "$STATE_FILE" ] || exit 0
+[ -f "$STATE_FILE" ] || { cat > /dev/null; exit 0; }
 
-# Extract transcript path and update tokens in state
-INPUT="$INPUT" STATE_FILE="$STATE_FILE" python3 -c "
-import json, os
+# Pipe stdin directly to python (avoids env var size limits)
+STATE_FILE="$STATE_FILE" MAX_TRANSCRIPT_BYTES="$MAX_TRANSCRIPT_BYTES" python3 -c "
+import json, os, stat, sys
 
-inp = os.environ.get('INPUT', '{}')
+inp = sys.stdin.read()
 sf = os.environ.get('STATE_FILE', '')
+max_transcript_bytes = int(os.environ.get('MAX_TRANSCRIPT_BYTES', '5242880'))
 
 try:
     hook_data = json.loads(inp)
-except:
+except Exception:
     exit(0)
 
 transcript_path = hook_data.get('transcript_path', '')
 if not transcript_path:
+    exit(0)
+
+try:
+    transcript_stat = os.stat(transcript_path)
+except OSError:
+    exit(0)
+
+if not stat.S_ISREG(transcript_stat.st_mode):
+    exit(0)
+
+if transcript_stat.st_size > max_transcript_bytes:
     exit(0)
 
 # Parse transcript for token usage
@@ -54,16 +67,16 @@ try:
                     total_output += usage.get('output_tokens', 0)
                     total_cache_read += usage.get('cache_read_input_tokens', usage.get('cache_read_tokens', 0))
                     total_cache_create += usage.get('cache_creation_input_tokens', usage.get('cache_creation_tokens', 0))
-            except:
+            except Exception:
                 continue
-except:
+except Exception:
     exit(0)
 
 # Update state file — tokens only, no pricing
 try:
     with open(sf) as f:
         state = json.load(f)
-except:
+except Exception:
     state = {}
 
 state['tokens_input'] = total_input
@@ -74,7 +87,7 @@ state['tokens_cache_create'] = total_cache_create
 try:
     with open(sf, 'w') as f:
         json.dump(state, f)
-except:
+except Exception:
     pass
 " 2>/dev/null || true
 
