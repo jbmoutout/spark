@@ -379,8 +379,21 @@ for widget in branch diff_weight files_touched tokens prompt_count session_clock
     # Alert mode: only show on line 2 when value != "ok"
     if [ "$value" != "ok" ]; then
       case "$widget" in
-        last_session) alert_parts+=("↩ $value") ;;
-        *)            alert_parts+=("$value") ;;
+        last_session)
+          # Only show on first prompt of session
+          pc=$(STATE_FILE="$STATE_FILE" python3 -c "
+import json, os
+try:
+    with open(os.environ['STATE_FILE']) as f: print(json.load(f).get('prompt_count', 0))
+except Exception: print(0)
+" 2>/dev/null || echo "0")
+          if [ "$pc" = "1" ]; then
+            val_last_session="$value"
+          fi
+          ;;
+        *)
+          alert_parts+=("$value")
+          ;;
       esac
     fi
   elif [ "$mode" = "context" ]; then
@@ -462,9 +475,18 @@ if [ ${#alert_parts[@]} -gt 0 ]; then
   alert_line="△ $joined"
 fi
 
+# Build last_session line (separate from alerts, first prompt only)
+last_session_line=""
+if [ -n "$val_last_session" ]; then
+  last_session_line="↩ $val_last_session"
+fi
+
 # Combine lines
 if [ -n "$alert_line" ]; then
   display_line="${display_line}\n${alert_line}"
+fi
+if [ -n "$last_session_line" ]; then
+  display_line="${display_line}\n${last_session_line}"
 fi
 
 context_line=""
