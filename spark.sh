@@ -236,12 +236,12 @@ format_line1() {
 
     # Model — only if changed
     if [ -n "$model" ] && [ "$model" != "?" ] && [ "$model" != "$prev_model" ]; then
-      identity="$identity $model"
+      identity="$identity · $model"
     fi
 
-    # Diff — only if changed (joins identity zone)
+    # Diff — only if changed
     if [ -n "$diff" ] && [ "$diff" != "ok" ] && [ "$diff" != "$prev_diff" ]; then
-      identity="$identity $diff"
+      identity="$identity · $diff"
     fi
 
     # Metrics — always (heartbeat)
