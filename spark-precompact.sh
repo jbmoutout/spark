@@ -1,6 +1,6 @@
 #!/bin/bash
 # Spark ⚡ — PreCompact hook
-# Writes compaction flag to state so the HUD can warn the user.
+# Writes compaction flag to state so the status line can warn the user.
 
 set -euo pipefail
 cat > /dev/null

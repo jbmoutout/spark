@@ -1,6 +1,6 @@
 #!/bin/bash
-# ⚡ Spark — A HUD for Claude Code
-# Orchestrator: loads config, runs widgets, assembles HUD, outputs JSON.
+# spark — status line for claude code
+# Orchestrator: loads config, runs widgets, assembles status line, outputs JSON.
 # Prompt #1 = preflight (full state). Prompt #2+ = delta (what changed).
 
 set -euo pipefail

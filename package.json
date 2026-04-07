@@ -1,7 +1,7 @@
 {
   "name": "spark-hud",
   "version": "0.7.0",
-  "description": "⚡ Spark — A HUD for Claude Code",
+  "description": "status line for claude code sessions",
   "scripts": {
     "test": "node --test"
   },
@@ -17,10 +17,7 @@
   ],
   "keywords": [
     "claude-code",
-    "hooks",
-    "hud",
-    "developer-tools",
-    "ai-coding"
+    "hooks"
   ],
   "author": "jbmoutout",
   "license": "MIT",

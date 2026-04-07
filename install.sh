@@ -107,4 +107,4 @@ PY
 echo "  Installed hook files from $SCRIPT_SOURCE_DIR"
 echo "  Updated $SETTINGS_FILE"
 echo ""
-echo "⚡ Spark installed. Start a Claude Code session to see the HUD."
+echo "⚡ Spark installed. Start a Claude Code session to see the status line."

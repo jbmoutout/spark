@@ -146,7 +146,7 @@ function install() {
   console.log('  Hooks installed to .claude/hooks/');
   console.log('  Settings updated in .claude/settings.json');
   console.log('');
-  console.log('⚡ Spark installed. Start a Claude Code session to see the HUD.');
+  console.log('⚡ Spark installed. Start a Claude Code session to see the status line.');
 }
 
 // CLI
@@ -154,7 +154,7 @@ const arg = process.argv[2];
 if (arg === '--remove' || arg === 'remove' || arg === 'uninstall') {
   remove();
 } else if (arg === '--help' || arg === '-h') {
-  console.log('⚡ Spark — A HUD for Claude Code');
+  console.log('spark — status line for claude code');
   console.log('');
   console.log('Usage:');
   console.log('  npx spark-hud           Install Spark in current project');

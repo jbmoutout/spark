@@ -6,4 +6,4 @@
 - Do not introduce repo-controlled execution or network behavior without explicit external opt-in.
 - Do not restore remote installer downloads or repo-controlled custom widgets without re-evaluating the trust boundary.
 - When changing hook output, installer behavior, or trust-boundary logic, update tests and docs in the same change.
-- If you change shell portability rules or verification steps, keep `CONTRIBUTING.md` and `.github/workflows/ci.yml` in sync.
+- If you change shell portability rules or verification steps, keep `.github/workflows/ci.yml` in sync.
